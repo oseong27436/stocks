@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import yahooFinance from 'yahoo-finance2'
+
+const YF_HEADERS = { 'User-Agent': 'Mozilla/5.0' }
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const symbols = searchParams.get('symbols')?.split(',') ?? []
+  const symbolsParam = searchParams.get('symbols')
   const query = searchParams.get('search')
 
   if (query) {
     try {
       const res = await fetch(
         `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=6&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query`,
-        { headers: { 'User-Agent': 'Mozilla/5.0' } }
+        { headers: YF_HEADERS }
       )
       const json = await res.json()
       const items = (json.quotes ?? [])
@@ -18,32 +19,32 @@ export async function GET(req: NextRequest) {
         .slice(0, 6)
         .map((q: any) => ({ symbol: q.symbol, name: q.longname || q.shortname || q.symbol }))
       return NextResponse.json(items)
-    } catch (e: any) {
-      console.error('search error:', e?.message ?? e)
+    } catch {
       return NextResponse.json([])
     }
   }
 
-  if (symbols.length === 0) {
+  if (!symbolsParam) {
     return NextResponse.json({ error: 'symbols required' }, { status: 400 })
   }
 
   try {
-    const quotes = await Promise.all(
-      symbols.map(async (symbol) => {
-        const q = await yahooFinance.quote(symbol) as any
-        return {
-          symbol,
-          name: q.longName || q.shortName || symbol,
-          price: q.regularMarketPrice,
-          change: q.regularMarketChange,
-          changePercent: q.regularMarketChangePercent,
-          previousClose: q.regularMarketPreviousClose,
-        }
-      })
+    const res = await fetch(
+      `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbolsParam)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,longName,shortName`,
+      { headers: YF_HEADERS }
     )
+    const json = await res.json()
+    const results = json?.quoteResponse?.result ?? []
+    const quotes = results.map((q: any) => ({
+      symbol: q.symbol,
+      name: q.longName || q.shortName || q.symbol,
+      price: q.regularMarketPrice ?? 0,
+      change: q.regularMarketChange ?? 0,
+      changePercent: q.regularMarketChangePercent ?? 0,
+    }))
     return NextResponse.json(quotes)
   } catch (e) {
-    return NextResponse.json({ error: 'fetch failed' }, { status: 500 })
+    console.error('quote error:', e)
+    return NextResponse.json([], { status: 500 })
   }
 }
