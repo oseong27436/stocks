@@ -128,9 +128,9 @@ export default function DashboardPage() {
           <p className="text-sm text-zinc-400">총 평가금액</p>
           <button
             onClick={() => setCurrency(c => c === 'USD' ? 'KRW' : 'USD')}
-            className="text-xs bg-zinc-700 hover:bg-zinc-600 rounded-full px-3 py-1 transition-colors font-semibold"
+            className="text-xs bg-zinc-700 hover:bg-zinc-600 rounded-full px-2 py-1 transition-colors font-semibold"
           >
-            {currency === 'USD' ? '$ USD → ₩ KRW' : '₩ KRW → $ USD'}
+            {currency === 'USD' ? '$ → ₩' : '₩ → $'}
           </button>
         </div>
         <p className="text-3xl font-bold">{fmt(totalCurrent)}</p>
