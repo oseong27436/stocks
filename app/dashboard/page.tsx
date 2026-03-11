@@ -26,7 +26,9 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<{ symbol: string; name: string }[]>([])
   const [searching, setSearching] = useState(false)
-  const [currency, setCurrency] = useState<'USD' | 'KRW'>('USD')
+  const [currency, setCurrency] = useState<'USD' | 'KRW'>(() =>
+    (typeof window !== 'undefined' && localStorage.getItem('currency') as 'USD' | 'KRW') || 'USD'
+  )
   const [exchangeRate, setExchangeRate] = useState<number>(1)
   const [isAdmin, setIsAdmin] = useState(false)
   const [showNickname, setShowNickname] = useState(false)
@@ -187,7 +189,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-1">
           <p className="text-sm text-zinc-400">총 평가금액</p>
           <button
-            onClick={() => setCurrency(c => c === 'USD' ? 'KRW' : 'USD')}
+            onClick={() => setCurrency(c => { const next = c === 'USD' ? 'KRW' : 'USD'; localStorage.setItem('currency', next); return next })}
             className="text-xs bg-zinc-700 hover:bg-zinc-600 rounded-full px-2 py-1 transition-colors font-semibold"
           >
             {currency === 'USD' ? '$ → ₩' : '₩ → $'}
