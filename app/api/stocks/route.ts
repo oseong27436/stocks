@@ -14,7 +14,8 @@ export async function GET(req: NextRequest) {
         .slice(0, 6)
         .map((q: any) => ({ symbol: q.symbol, name: q.longname || q.shortname || q.symbol }))
       return NextResponse.json(items)
-    } catch (e) {
+    } catch (e: any) {
+      console.error('search error:', e?.message ?? e)
       return NextResponse.json([])
     }
   }
