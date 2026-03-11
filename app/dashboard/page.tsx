@@ -29,6 +29,10 @@ export default function DashboardPage() {
   const [currency, setCurrency] = useState<'USD' | 'KRW'>('USD')
   const [exchangeRate, setExchangeRate] = useState<number>(1)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [showNickname, setShowNickname] = useState(false)
+  const [nickname, setNickname] = useState('')
+  const [nicknameSaving, setNicknameSaving] = useState(false)
+  const [pendingUserId, setPendingUserId] = useState('')
 
   const fetchHoldings = useCallback(async (userId: string) => {
     const { data } = await supabase.from('holdings').select('*').eq('user_id', userId)
@@ -47,6 +51,12 @@ export default function DashboardPage() {
       if (!data.session) { router.replace('/login'); return }
       const userId = data.session.user.id
       const { data: p } = await supabase.from('user_profiles').select('*').eq('id', userId).single()
+      if (!p) {
+        setPendingUserId(userId)
+        setShowNickname(true)
+        setLoading(false)
+        return
+      }
       setProfile(p)
       if (p?.is_admin) setIsAdmin(true)
       const [h, rateRes] = await Promise.all([
@@ -90,6 +100,25 @@ export default function DashboardPage() {
     setSaving(false)
   }
 
+  async function handleSetNickname(e: React.FormEvent) {
+    e.preventDefault()
+    if (!nickname.trim()) return
+    setNicknameSaving(true)
+    await supabase.from('user_profiles').insert({ id: pendingUserId, nickname: nickname.trim() })
+    const { data: p } = await supabase.from('user_profiles').select('*').eq('id', pendingUserId).single()
+    setProfile(p)
+    if (p?.is_admin) setIsAdmin(true)
+    setShowNickname(false)
+    const [h, rateRes] = await Promise.all([
+      fetchHoldings(pendingUserId),
+      fetch('/api/stocks?symbols=USDKRW=X'),
+    ])
+    const rateData = await rateRes.json()
+    if (rateData?.[0]?.price) setExchangeRate(rateData[0].price)
+    setHoldings(h)
+    setNicknameSaving(false)
+  }
+
   async function handleDelete(id: string) {
     await supabase.from('holdings').delete().eq('id', id)
     setHoldings(prev => prev.filter(h => h.id !== id))
@@ -106,6 +135,30 @@ export default function DashboardPage() {
   const totalPnlPct = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0
 
   if (loading) return <div className="flex min-h-screen items-center justify-center text-zinc-400">로딩 중...</div>
+
+  if (showNickname) return (
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <form onSubmit={handleSetNickname} className="bg-zinc-800 rounded-xl p-6 w-full max-w-sm flex flex-col gap-4">
+        <h2 className="text-lg font-semibold">닉네임 설정</h2>
+        <p className="text-sm text-zinc-400">그룹에서 표시될 이름을 정해주세요.</p>
+        <input
+          value={nickname}
+          onChange={e => setNickname(e.target.value)}
+          placeholder="닉네임 입력"
+          required
+          maxLength={20}
+          className="bg-zinc-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button
+          type="submit"
+          disabled={nicknameSaving}
+          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg py-2 text-sm font-semibold transition-colors"
+        >
+          {nicknameSaving ? '저장 중...' : '시작하기'}
+        </button>
+      </form>
+    </div>
+  )
 
   return (
     <div className="min-h-screen px-4 py-6 max-w-2xl mx-auto">
