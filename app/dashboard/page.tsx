@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [searching, setSearching] = useState(false)
   const [currency, setCurrency] = useState<'USD' | 'KRW'>('USD')
   const [exchangeRate, setExchangeRate] = useState<number>(1)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   const fetchHoldings = useCallback(async (userId: string) => {
     const { data } = await supabase.from('holdings').select('*').eq('user_id', userId)
@@ -47,6 +48,7 @@ export default function DashboardPage() {
       const userId = data.session.user.id
       const { data: p } = await supabase.from('user_profiles').select('*').eq('id', userId).single()
       setProfile(p)
+      if (p?.is_admin) setIsAdmin(true)
       const [h, rateRes] = await Promise.all([
         fetchHoldings(userId),
         fetch('/api/stocks?symbols=USDKRW=X'),
@@ -116,6 +118,11 @@ export default function DashboardPage() {
           <Link href="/groups" className="text-sm bg-zinc-800 hover:bg-zinc-700 rounded-lg px-3 py-1.5 transition-colors">
             👥 그룹
           </Link>
+          {isAdmin && (
+            <Link href="/admin" className="text-sm bg-zinc-800 hover:bg-zinc-700 rounded-lg px-3 py-1.5 transition-colors">
+              🛠️
+            </Link>
+          )}
           <button onClick={() => { signOut(); router.replace('/login') }} className="text-sm text-zinc-400 hover:text-zinc-200">
             로그아웃
           </button>

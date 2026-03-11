@@ -8,6 +8,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export type UserProfile = {
   id: string
   nickname: string
+  is_admin: boolean
   created_at: string
 }
 
