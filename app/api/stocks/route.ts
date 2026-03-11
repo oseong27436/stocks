@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
 
   if (query) {
     try {
-      const results = await yahooFinance.search(query) as any
+      const results = await yahooFinance.search(query, {}, { validateResult: false }) as any
       const items = (results.quotes ?? [])
         .filter((q: any) => q.quoteType === 'EQUITY' && q.symbol)
         .slice(0, 6)
