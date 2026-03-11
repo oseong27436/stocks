@@ -52,6 +52,8 @@ export default function DashboardPage() {
   const [selectedPrice, setSelectedPrice] = useState<number | null>(null)
   const [tickerBlink, setTickerBlink] = useState(true)
   const [clock, setClock] = useState('')
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [onboardingStep, setOnboardingStep] = useState(0)
 
   const fetchMarketData = useCallback(async () => {
     const [rateRes, idxRes] = await Promise.all([
@@ -89,6 +91,8 @@ export default function DashboardPage() {
       }
       setProfile(p)
       if (p?.is_admin) setIsAdmin(true)
+      if (p?.hide_amounts) setHideAmounts(true)
+      if (!localStorage.getItem('onboarding_seen')) setShowOnboarding(true)
       const [h] = await Promise.all([
         fetchHoldings(userId),
         fetchMarketData(),
@@ -158,6 +162,7 @@ export default function DashboardPage() {
     setProfile(p)
     if (p?.is_admin) setIsAdmin(true)
     setShowNickname(false)
+    setShowOnboarding(true)
     const [h] = await Promise.all([fetchHoldings(pendingUserId), fetchMarketData()])
     setHoldings(h)
     setNicknameSaving(false)
@@ -253,7 +258,12 @@ export default function DashboardPage() {
             <p className="text-sm text-zinc-400">총 평가금액</p>
             <div className="flex gap-1.5">
               <button
-                onClick={() => { const next = !hideAmounts; localStorage.setItem('hideAmounts', String(next)); setHideAmounts(next) }}
+                onClick={async () => {
+                  const next = !hideAmounts
+                  setHideAmounts(next)
+                  const { data: s } = await supabase.auth.getSession()
+                  if (s.session) await supabase.from('user_profiles').update({ hide_amounts: next }).eq('id', s.session.user.id)
+                }}
                 className="text-xs bg-zinc-700 hover:bg-zinc-600 rounded-full px-2 py-1 transition-colors"
                 title="금액 숨기기"
               >
@@ -289,8 +299,33 @@ export default function DashboardPage() {
         </div>
 
         {holdings.length === 0 ? (
-          <div className="bg-zinc-800 rounded-xl p-8 text-center text-zinc-400 text-sm">
-            보유 종목이 없습니다. 추가해보세요!
+          <div className="bg-zinc-800 rounded-xl p-8 text-center">
+            <div className="text-5xl mb-4">📊</div>
+            <h3 className="font-semibold text-base mb-1">아직 보유 종목이 없어요</h3>
+            <p className="text-sm text-zinc-400 mb-5">첫 종목을 추가해서 포트폴리오를 시작해보세요.</p>
+            <button
+              onClick={() => { setShowAdd(true); setSearchQuery(''); setSearchResults([]); setForm({ symbol: '', quantity: '', avg_price: '', total_invested: '' }); setSelectedPrice(null); setPriceMode('avg') }}
+              className="bg-blue-600 hover:bg-blue-700 rounded-lg px-5 py-2 text-sm font-semibold transition-colors mb-8"
+            >
+              + 첫 종목 추가하기
+            </button>
+            <div className="grid grid-cols-3 gap-3 text-xs text-zinc-500 border-t border-zinc-700 pt-6">
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-2xl">🔍</span>
+                <p className="font-semibold text-zinc-300">티커·회사명 검색</p>
+                <p>AAPL, 애플, NVDA 등<br />뭐든 검색 가능해요</p>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-2xl">👥</span>
+                <p className="font-semibold text-zinc-300">그룹 수익률 비교</p>
+                <p>친구들과 그룹을 만들어<br />수익률을 겨뤄보세요</p>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-2xl">📅</span>
+                <p className="font-semibold text-zinc-300">히스토리 추적</p>
+                <p>매일 자동 저장되는<br />수익률 변화 그래프</p>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -446,6 +481,68 @@ export default function DashboardPage() {
           </form>
         </div>
       )}
+
+      {/* 온보딩 모달 */}
+      {showOnboarding && (() => {
+        const steps = [
+          {
+            icon: '👋',
+            title: `${profile?.nickname}님, 환영합니다!`,
+            desc: '이 앱은 해외 주식 포트폴리오를 간단하게 관리하고, 친구들과 수익률을 비교할 수 있는 서비스예요.',
+            sub: '3단계로 빠르게 시작해볼게요.',
+          },
+          {
+            icon: '📈',
+            title: '종목을 추가해보세요',
+            desc: '티커(AAPL) 또는 회사명(애플)으로 검색하고, 보유 수량과 평단가를 입력하면 바로 수익률을 볼 수 있어요.',
+            sub: '평단가를 모르면 총 투자 원금으로도 입력할 수 있어요.',
+          },
+          {
+            icon: '👥',
+            title: '그룹에서 친구와 비교해요',
+            desc: '그룹을 만들고 ID를 공유하면 친구들과 실시간 수익률 랭킹을 볼 수 있어요.',
+            sub: '금액 숨기기를 켜면 다른 사람에게 내 금액이 ••••••으로 보여요.',
+          },
+        ]
+        const step = steps[onboardingStep]
+        const isLast = onboardingStep === steps.length - 1
+        function close() {
+          localStorage.setItem('onboarding_seen', 'true')
+          setShowOnboarding(false)
+          setOnboardingStep(0)
+        }
+        return (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center px-4 z-50">
+            <div className="bg-zinc-800 rounded-2xl p-7 w-full max-w-sm flex flex-col gap-5 shadow-2xl">
+              {/* 진행 점 */}
+              <div className="flex justify-center gap-1.5">
+                {steps.map((_, i) => (
+                  <div key={i} className={`h-1.5 rounded-full transition-all ${i === onboardingStep ? 'w-6 bg-blue-500' : 'w-1.5 bg-zinc-600'}`} />
+                ))}
+              </div>
+              {/* 내용 */}
+              <div className="text-center">
+                <div className="text-5xl mb-4">{step.icon}</div>
+                <h2 className="text-lg font-bold mb-2">{step.title}</h2>
+                <p className="text-sm text-zinc-300 leading-relaxed mb-2">{step.desc}</p>
+                {step.sub && <p className="text-xs text-zinc-500">{step.sub}</p>}
+              </div>
+              {/* 버튼 */}
+              <div className="flex gap-2">
+                <button onClick={close} className="text-xs text-zinc-500 hover:text-zinc-300 px-3 py-2 transition-colors">
+                  건너뛰기
+                </button>
+                <button
+                  onClick={() => isLast ? close() : setOnboardingStep(s => s + 1)}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 rounded-lg py-2.5 text-sm font-semibold transition-colors"
+                >
+                  {isLast ? '시작하기 🚀' : '다음 →'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* 종목 추가 모달 */}
       {showAdd && (
