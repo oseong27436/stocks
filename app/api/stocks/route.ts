@@ -8,8 +8,12 @@ export async function GET(req: NextRequest) {
 
   if (query) {
     try {
-      const results = await yahooFinance.search(query, {}, { validateResult: false }) as any
-      const items = (results.quotes ?? [])
+      const res = await fetch(
+        `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=6&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query`,
+        { headers: { 'User-Agent': 'Mozilla/5.0' } }
+      )
+      const json = await res.json()
+      const items = (json.quotes ?? [])
         .filter((q: any) => q.quoteType === 'EQUITY' && q.symbol)
         .slice(0, 6)
         .map((q: any) => ({ symbol: q.symbol, name: q.longname || q.shortname || q.symbol }))
