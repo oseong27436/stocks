@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const [editingHolding, setEditingHolding] = useState<HoldingWithQuote | null>(null)
   const [editForm, setEditForm] = useState({ quantity: '', avg_price: '' })
   const [editSaving, setEditSaving] = useState(false)
+  const [selectedPrice, setSelectedPrice] = useState<number | null>(null)
 
   const fetchHoldings = useCallback(async (userId: string) => {
     const { data } = await supabase.from('holdings').select('*').eq('user_id', userId)
@@ -229,7 +230,7 @@ export default function DashboardPage() {
       {/* 종목 목록 */}
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-semibold">보유 종목</h2>
-        <button onClick={() => { setShowAdd(true); setSearchQuery(''); setSearchResults([]); setForm({ symbol: '', quantity: '', avg_price: '' }) }} className="text-sm bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5 transition-colors">
+        <button onClick={() => { setShowAdd(true); setSearchQuery(''); setSearchResults([]); setForm({ symbol: '', quantity: '', avg_price: '' }); setSelectedPrice(null) }} className="text-sm bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5 transition-colors">
           + 추가
         </button>
       </div>
@@ -343,7 +344,8 @@ export default function DashboardPage() {
                         setSearchResults([])
                         const res = await fetch(`/api/stocks?symbols=${r.symbol}`)
                         const data = await res.json()
-                        if (data?.[0]?.price) setForm(f => ({ ...f, avg_price: data[0].price.toString() }))
+                        if (data?.[0]?.price) setSelectedPrice(data[0].price)
+                        else setSelectedPrice(null)
                       }}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-600 flex justify-between"
                     >
@@ -353,7 +355,14 @@ export default function DashboardPage() {
                   ))}
                 </div>
               )}
-              {form.symbol && <p className="text-xs text-green-400">선택됨: {form.symbol}</p>}
+              {form.symbol && (
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-green-400">선택됨: {form.symbol}</p>
+                  {selectedPrice !== null && (
+                    <p className="text-xs text-zinc-400">현재가: <span className="text-white font-semibold">{fmt(selectedPrice)}</span></p>
+                  )}
+                </div>
+              )}
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-sm text-zinc-400">수량 (주)</label>
@@ -369,12 +378,12 @@ export default function DashboardPage() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-sm text-zinc-400">평단가 ($)</label>
+              <label className="text-sm text-zinc-400">내 매수 평단가 ($) <span className="text-zinc-600">— 직접 입력</span></label>
               <input
                 type="number"
                 value={form.avg_price}
                 onChange={e => setForm(f => ({ ...f, avg_price: e.target.value }))}
-                placeholder="예: 800.00"
+                placeholder="예: 260.00"
                 required
                 min="0.01"
                 step="any"
@@ -382,7 +391,7 @@ export default function DashboardPage() {
               />
             </div>
             <div className="flex gap-2">
-              <button type="button" onClick={() => { setShowAdd(false); setSearchQuery(''); setSearchResults([]) }} className="flex-1 bg-zinc-700 hover:bg-zinc-600 rounded-lg py-2 text-sm transition-colors">취소</button>
+              <button type="button" onClick={() => { setShowAdd(false); setSearchQuery(''); setSearchResults([]); setSelectedPrice(null) }} className="flex-1 bg-zinc-700 hover:bg-zinc-600 rounded-lg py-2 text-sm transition-colors">취소</button>
               <button type="submit" disabled={saving} className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg py-2 text-sm font-semibold transition-colors">
                 {saving ? '저장 중...' : '추가'}
               </button>
