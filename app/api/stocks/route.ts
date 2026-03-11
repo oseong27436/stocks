@@ -4,6 +4,20 @@ import yahooFinance from 'yahoo-finance2'
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const symbols = searchParams.get('symbols')?.split(',') ?? []
+  const query = searchParams.get('search')
+
+  if (query) {
+    try {
+      const results = await yahooFinance.search(query) as any
+      const items = (results.quotes ?? [])
+        .filter((q: any) => q.quoteType === 'EQUITY' && q.symbol)
+        .slice(0, 6)
+        .map((q: any) => ({ symbol: q.symbol, name: q.longname || q.shortname || q.symbol }))
+      return NextResponse.json(items)
+    } catch (e) {
+      return NextResponse.json([])
+    }
+  }
 
   if (symbols.length === 0) {
     return NextResponse.json({ error: 'symbols required' }, { status: 400 })
