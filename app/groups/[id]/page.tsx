@@ -15,6 +15,7 @@ type MemberSummary = {
   pnl: number
   pnlPct: number
   dailyPnl: number
+  hideAmounts: boolean
 }
 
 type HistoryEntry = {
@@ -87,7 +88,7 @@ export default function GroupDetailPage() {
         }
         const pnl = totalCurrent - totalInvested
         const pnlPct = totalInvested > 0 ? (pnl / totalInvested) * 100 : 0
-        summaries.push({ profile, holdings: h, totalInvested, totalCurrent, pnl, pnlPct, dailyPnl })
+        summaries.push({ profile, holdings: h, totalInvested, totalCurrent, pnl, pnlPct, dailyPnl, hideAmounts: !!(profile as any).hide_amounts })
       }
       summaries.sort((a, b) => b.pnlPct - a.pnlPct)
       setMembers(summaries)
@@ -216,18 +217,18 @@ export default function GroupDetailPage() {
                   <div>
                     <p className="text-xs text-zinc-500">총 수익</p>
                     <p className={`font-semibold ${m.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {m.pnl >= 0 ? '+' : ''}{fmt(m.pnl)}
+                      {m.hideAmounts ? '••••••' : `${m.pnl >= 0 ? '+' : ''}${fmt(m.pnl)}`}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-zinc-500">오늘 수익</p>
                     <p className={`font-semibold ${m.dailyPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {m.dailyPnl >= 0 ? '+' : ''}{fmt(m.dailyPnl)}
+                      {m.hideAmounts ? '••••••' : `${m.dailyPnl >= 0 ? '+' : ''}${fmt(m.dailyPnl)}`}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-zinc-500">평가금액</p>
-                    <p className="font-semibold">{fmt(m.totalCurrent)}</p>
+                    <p className="font-semibold">{m.hideAmounts ? '••••••' : fmt(m.totalCurrent)}</p>
                   </div>
                 </div>
                 {m.holdings.length > 0 && (
