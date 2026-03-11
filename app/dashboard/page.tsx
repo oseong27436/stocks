@@ -273,7 +273,14 @@ export default function DashboardPage() {
                     <button
                       key={r.symbol}
                       type="button"
-                      onClick={() => { setForm(f => ({ ...f, symbol: r.symbol })); setSearchQuery(`${r.symbol} - ${r.name}`); setSearchResults([]) }}
+                      onClick={async () => {
+                        setForm(f => ({ ...f, symbol: r.symbol }))
+                        setSearchQuery(`${r.symbol} - ${r.name}`)
+                        setSearchResults([])
+                        const res = await fetch(`/api/stocks?symbols=${r.symbol}`)
+                        const data = await res.json()
+                        if (data?.[0]?.price) setForm(f => ({ ...f, avg_price: data[0].price.toString() }))
+                      }}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-600 flex justify-between"
                     >
                       <span className="font-semibold">{r.symbol}</span>
