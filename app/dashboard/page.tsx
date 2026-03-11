@@ -27,7 +27,8 @@ export default function DashboardPage() {
   const [holdings, setHoldings] = useState<HoldingWithQuote[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ symbol: '', quantity: '', avg_price: '' })
+  const [form, setForm] = useState({ symbol: '', quantity: '', avg_price: '', total_invested: '' })
+  const [priceMode, setPriceMode] = useState<'avg' | 'total'>('avg')
   const [saving, setSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<{ symbol: string; name: string }[]>([])
@@ -129,15 +130,19 @@ export default function DashboardPage() {
     setSaving(true)
     const { data: session } = await supabase.auth.getSession()
     if (!session.session) return
+    const qty = parseFloat(form.quantity)
+    const avgPrice = priceMode === 'total'
+      ? parseFloat(form.total_invested) / qty
+      : parseFloat(form.avg_price)
     await supabase.from('holdings').insert({
       user_id: session.session.user.id,
       symbol: form.symbol.toUpperCase(),
-      quantity: parseFloat(form.quantity),
-      avg_price: parseFloat(form.avg_price),
+      quantity: qty,
+      avg_price: avgPrice,
     })
     const h = await fetchHoldings(session.session.user.id)
     setHoldings(h)
-    setForm({ symbol: '', quantity: '', avg_price: '' })
+    setForm({ symbol: '', quantity: '', avg_price: '', total_invested: '' })
     setShowAdd(false)
     setSaving(false)
   }
@@ -274,7 +279,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold">보유 종목</h2>
           <button
-            onClick={() => { setShowAdd(true); setSearchQuery(''); setSearchResults([]); setForm({ symbol: '', quantity: '', avg_price: '' }); setSelectedPrice(null) }}
+            onClick={() => { setShowAdd(true); setSearchQuery(''); setSearchResults([]); setForm({ symbol: '', quantity: '', avg_price: '', total_invested: '' }); setSelectedPrice(null); setPriceMode('avg') }}
             className="text-sm bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5 transition-colors"
           >
             + 추가
@@ -499,19 +504,60 @@ export default function DashboardPage() {
                 className="bg-zinc-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm text-zinc-400">내 매수 평단가 ($) <span className="text-zinc-600">— 직접 입력</span></label>
-              <input
-                type="number"
-                value={form.avg_price}
-                onChange={e => setForm(f => ({ ...f, avg_price: e.target.value }))}
-                placeholder="예: 260.00"
-                required
-                min="0.01"
-                step="any"
-                className="bg-zinc-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-              />
+            {/* 입력 방식 선택 */}
+            <div className="flex gap-1 bg-zinc-700 rounded-lg p-1">
+              <button
+                type="button"
+                onClick={() => setPriceMode('avg')}
+                className={`flex-1 text-xs py-1.5 rounded-md transition-colors ${priceMode === 'avg' ? 'bg-zinc-500 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}`}
+              >
+                평단가 입력
+              </button>
+              <button
+                type="button"
+                onClick={() => setPriceMode('total')}
+                className={`flex-1 text-xs py-1.5 rounded-md transition-colors ${priceMode === 'total' ? 'bg-zinc-500 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}`}
+              >
+                투자 원금 입력
+              </button>
             </div>
+
+            {priceMode === 'avg' ? (
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-zinc-400">매수 평단가 ($)</label>
+                <input
+                  type="number"
+                  value={form.avg_price}
+                  onChange={e => setForm(f => ({ ...f, avg_price: e.target.value }))}
+                  placeholder="예: 260.00"
+                  required
+                  min="0.01"
+                  step="any"
+                  className="bg-zinc-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-zinc-400">총 투자 원금 ($)</label>
+                <input
+                  type="number"
+                  value={form.total_invested}
+                  onChange={e => setForm(f => ({ ...f, total_invested: e.target.value }))}
+                  placeholder="예: 3000.00"
+                  required
+                  min="0.01"
+                  step="any"
+                  className="bg-zinc-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {form.total_invested && form.quantity && (
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    → 평단가: <span className="text-white font-semibold">
+                      ${(parseFloat(form.total_invested) / parseFloat(form.quantity)).toFixed(2)}
+                    </span>
+                  </p>
+                )}
+              </div>
+            )}
             <div className="flex gap-2">
               <button type="button" onClick={() => { setShowAdd(false); setSearchQuery(''); setSearchResults([]); setSelectedPrice(null) }} className="flex-1 bg-zinc-700 hover:bg-zinc-600 rounded-lg py-2 text-sm transition-colors">취소</button>
               <button type="submit" disabled={saving} className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg py-2 text-sm font-semibold transition-colors">
