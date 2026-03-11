@@ -301,13 +301,15 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* 하단: 현재가 / 수익 */}
+                  {/* 하단: 평가금액 / 수익 */}
                   <div className="flex items-end justify-between">
                     <div>
                       <p className="text-2xl font-bold tabular-nums">
-                        {h.quote?.price ? fmt(h.quote.price) : '-'}
+                        {fmt(current)}
                       </p>
-                      <p className="text-xs text-zinc-500 mt-0.5">{h.quantity}주 · 평단 {fmt(h.avg_price)}</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        {h.quantity}주 · 주가 {h.quote?.price ? fmt(h.quote.price) : '-'}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className={`text-xl font-bold tabular-nums ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
