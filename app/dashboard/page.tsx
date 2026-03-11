@@ -15,6 +15,12 @@ type QuoteData = {
 
 type HoldingWithQuote = Holding & { quote?: QuoteData }
 
+const INDEX_LABELS: Record<string, string> = {
+  '^GSPC': 'S&P 500',
+  '^IXIC': 'NASDAQ',
+  '^DJI': 'DOW',
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -40,6 +46,18 @@ export default function DashboardPage() {
   const [editForm, setEditForm] = useState({ quantity: '', avg_price: '' })
   const [editSaving, setEditSaving] = useState(false)
   const [selectedPrice, setSelectedPrice] = useState<number | null>(null)
+  const [tickerBlink, setTickerBlink] = useState(true)
+
+  const fetchMarketData = useCallback(async () => {
+    const [rateRes, idxRes] = await Promise.all([
+      fetch('/api/stocks?symbols=USDKRW=X'),
+      fetch('/api/stocks?symbols=%5EGSPC,%5EIXIC,%5EDJI'),
+    ])
+    const rateData = await rateRes.json()
+    if (rateData?.[0]?.price) setExchangeRate(rateData[0].price)
+    const idxData = await idxRes.json()
+    if (Array.isArray(idxData)) setIndices(idxData)
+  }, [])
 
   const fetchHoldings = useCallback(async (userId: string) => {
     const { data } = await supabase.from('holdings').select('*').eq('user_id', userId)
@@ -66,19 +84,26 @@ export default function DashboardPage() {
       }
       setProfile(p)
       if (p?.is_admin) setIsAdmin(true)
-      const [h, rateRes, idxRes] = await Promise.all([
+      const [h] = await Promise.all([
         fetchHoldings(userId),
-        fetch('/api/stocks?symbols=USDKRW=X'),
-        fetch('/api/stocks?symbols=%5EGSPC,%5EIXIC,%5EDJI'),
+        fetchMarketData(),
       ])
-      const rateData = await rateRes.json()
-      if (rateData?.[0]?.price) setExchangeRate(rateData[0].price)
-      const idxData = await idxRes.json()
-      if (Array.isArray(idxData)) setIndices(idxData)
       setHoldings(h)
       setLoading(false)
     })
-  }, [router, fetchHoldings])
+  }, [router, fetchHoldings, fetchMarketData])
+
+  // 60초마다 시장 데이터 새로고침
+  useEffect(() => {
+    const id = setInterval(fetchMarketData, 60_000)
+    return () => clearInterval(id)
+  }, [fetchMarketData])
+
+  // 전광판 커서 깜빡임
+  useEffect(() => {
+    const id = setInterval(() => setTickerBlink(b => !b), 600)
+    return () => clearInterval(id)
+  }, [])
 
   useEffect(() => {
     if (!searchQuery.trim()) { setSearchResults([]); return }
@@ -119,15 +144,7 @@ export default function DashboardPage() {
     setProfile(p)
     if (p?.is_admin) setIsAdmin(true)
     setShowNickname(false)
-    const [h, rateRes, idxRes] = await Promise.all([
-      fetchHoldings(pendingUserId),
-      fetch('/api/stocks?symbols=USDKRW=X'),
-      fetch('/api/stocks?symbols=%5EGSPC,%5EIXIC,%5EDJI'),
-    ])
-    const rateData = await rateRes.json()
-    if (rateData?.[0]?.price) setExchangeRate(rateData[0].price)
-    const idxData = await idxRes.json()
-    if (Array.isArray(idxData)) setIndices(idxData)
+    const [h] = await Promise.all([fetchHoldings(pendingUserId), fetchMarketData()])
     setHoldings(h)
     setNicknameSaving(false)
   }
@@ -153,12 +170,6 @@ export default function DashboardPage() {
     }
     setEditingHolding(null)
     setEditSaving(false)
-  }
-
-  const INDEX_LABELS: Record<string, string> = {
-    '^GSPC': 'S&P 500',
-    '^IXIC': 'NASDAQ',
-    '^DJI': 'DOW',
   }
 
   const rate = currency === 'KRW' ? exchangeRate : 1
@@ -198,131 +209,147 @@ export default function DashboardPage() {
   )
 
   return (
-    <div className="min-h-screen px-4 py-6 max-w-5xl mx-auto">
-      <div className="lg:grid lg:grid-cols-[1fr_240px] lg:gap-6">
-      {/* 메인 컨텐츠 */}
-      <div>
-      {/* 헤더 */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-bold">📈 {profile?.nickname}의 포트폴리오</h1>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/groups" className="text-sm bg-zinc-800 hover:bg-zinc-700 rounded-lg px-3 py-1.5 transition-colors">
-            👥 그룹
-          </Link>
-          {isAdmin && (
-            <Link href="/admin" className="text-sm bg-zinc-800 hover:bg-zinc-700 rounded-lg px-3 py-1.5 transition-colors">
-              🛠️
+    <div className="min-h-screen relative px-4 py-6">
+      {/* 메인 컨텐츠 — 중앙 고정 */}
+      <div className="max-w-2xl mx-auto">
+        {/* 헤더 */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-xl font-bold">📈 {profile?.nickname}의 포트폴리오</h1>
+          </div>
+          <div className="flex gap-2">
+            <Link href="/groups" className="text-sm bg-zinc-800 hover:bg-zinc-700 rounded-lg px-3 py-1.5 transition-colors">
+              👥 그룹
             </Link>
-          )}
-          <button onClick={() => { signOut(); router.replace('/login') }} className="text-sm text-zinc-400 hover:text-zinc-200">
-            로그아웃
-          </button>
-        </div>
-      </div>
-
-      {/* 총계 카드 */}
-      <div className="bg-zinc-800 rounded-xl p-5 mb-6">
-        <div className="flex items-center justify-between mb-1">
-          <p className="text-sm text-zinc-400">총 평가금액</p>
-          <button
-            onClick={() => setCurrency(c => { const next = c === 'USD' ? 'KRW' : 'USD'; localStorage.setItem('currency', next); return next })}
-            className="text-xs bg-zinc-700 hover:bg-zinc-600 rounded-full px-2 py-1 transition-colors font-semibold"
-          >
-            {currency === 'USD' ? '$ → ₩' : '₩ → $'}
-          </button>
-        </div>
-        <p className="text-3xl font-bold">{fmt(totalCurrent)}</p>
-        <p className={`mt-1 text-sm font-semibold ${totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-          {totalPnl >= 0 ? '+' : ''}{fmt(totalPnl)}
-          {' '}({totalPnlPct >= 0 ? '+' : ''}{totalPnlPct.toFixed(2)}%)
-        </p>
-        {currency === 'KRW' && (
-          <p className="mt-1 text-xs text-zinc-500">환율 ₩{Math.round(exchangeRate).toLocaleString()}/$ 기준</p>
-        )}
-      </div>
-
-      {/* 종목 목록 */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="font-semibold">보유 종목</h2>
-        <button onClick={() => { setShowAdd(true); setSearchQuery(''); setSearchResults([]); setForm({ symbol: '', quantity: '', avg_price: '' }); setSelectedPrice(null) }} className="text-sm bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5 transition-colors">
-          + 추가
-        </button>
-      </div>
-
-      {holdings.length === 0 ? (
-        <div className="bg-zinc-800 rounded-xl p-8 text-center text-zinc-400 text-sm">
-          보유 종목이 없습니다. 추가해보세요!
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {holdings.map(h => {
-            const current = (h.quote?.price ?? h.avg_price) * h.quantity
-            const invested = h.avg_price * h.quantity
-            const pnl = current - invested
-            const pnlPct = (pnl / invested) * 100
-            return (
-              <div key={h.id} className="bg-zinc-800 rounded-xl p-4 cursor-pointer hover:ring-1 hover:ring-zinc-600 transition-all" onClick={() => { setEditingHolding(h); setEditForm({ quantity: String(h.quantity), avg_price: String(h.avg_price) }) }}>
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <span className="font-bold">{h.symbol}</span>
-                    {h.quote?.name && <span className="ml-2 text-xs text-zinc-400">{h.quote.name}</span>}
-                  </div>
-                  <span className="text-xs text-zinc-600">수정 →</span>
-                </div>
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="text-lg font-semibold">
-                      {h.quote?.price ? fmt(h.quote.price) : '-'}
-                    </p>
-                    <p className={`text-xs ${(h.quote?.changePercent ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      오늘 {(h.quote?.changePercent ?? 0) >= 0 ? '+' : ''}{h.quote?.changePercent?.toFixed(2) ?? '0'}%
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-zinc-300">{h.quantity}주 · 평단 {fmt(h.avg_price)}</p>
-                    <p className={`text-sm font-semibold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {pnl >= 0 ? '+' : ''}{fmt(pnl)} ({pnlPct.toFixed(2)}%)
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      </div>{/* /메인 컨텐츠 */}
-
-      {/* 사이드바 — 데스크탑 전용 */}
-      <div className="hidden lg:flex lg:flex-col gap-4 pt-0">
-        {/* 환율 카드 */}
-        <div className="bg-zinc-800 rounded-xl p-4">
-          <p className="text-xs text-zinc-500 mb-3 font-semibold uppercase tracking-wide">환율</p>
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="text-xs text-zinc-400">USD / KRW</p>
-              <p className="text-xl font-bold">₩{Math.round(exchangeRate).toLocaleString()}</p>
-            </div>
+            {isAdmin && (
+              <Link href="/admin" className="text-sm bg-zinc-800 hover:bg-zinc-700 rounded-lg px-3 py-1.5 transition-colors">
+                🛠️
+              </Link>
+            )}
+            <button onClick={() => { signOut(); router.replace('/login') }} className="text-sm text-zinc-400 hover:text-zinc-200">
+              로그아웃
+            </button>
           </div>
         </div>
 
+        {/* 총계 카드 */}
+        <div className="bg-zinc-800 rounded-xl p-5 mb-6">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm text-zinc-400">총 평가금액</p>
+            <button
+              onClick={() => setCurrency(c => { const next = c === 'USD' ? 'KRW' : 'USD'; localStorage.setItem('currency', next); return next })}
+              className="text-xs bg-zinc-700 hover:bg-zinc-600 rounded-full px-2 py-1 transition-colors font-semibold"
+            >
+              {currency === 'USD' ? '$ → ₩' : '₩ → $'}
+            </button>
+          </div>
+          <p className="text-3xl font-bold">{fmt(totalCurrent)}</p>
+          <p className={`mt-1 text-sm font-semibold ${totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            {totalPnl >= 0 ? '+' : ''}{fmt(totalPnl)}
+            {' '}({totalPnlPct >= 0 ? '+' : ''}{totalPnlPct.toFixed(2)}%)
+          </p>
+          {currency === 'KRW' && (
+            <p className="mt-1 text-xs text-zinc-500">환율 ₩{Math.round(exchangeRate).toLocaleString()}/$ 기준</p>
+          )}
+        </div>
+
+        {/* 종목 목록 */}
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold">보유 종목</h2>
+          <button
+            onClick={() => { setShowAdd(true); setSearchQuery(''); setSearchResults([]); setForm({ symbol: '', quantity: '', avg_price: '' }); setSelectedPrice(null) }}
+            className="text-sm bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5 transition-colors"
+          >
+            + 추가
+          </button>
+        </div>
+
+        {holdings.length === 0 ? (
+          <div className="bg-zinc-800 rounded-xl p-8 text-center text-zinc-400 text-sm">
+            보유 종목이 없습니다. 추가해보세요!
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {holdings.map(h => {
+              const current = (h.quote?.price ?? h.avg_price) * h.quantity
+              const invested = h.avg_price * h.quantity
+              const pnl = current - invested
+              const pnlPct = (pnl / invested) * 100
+              return (
+                <div
+                  key={h.id}
+                  className="bg-zinc-800 rounded-xl p-4 cursor-pointer hover:ring-1 hover:ring-zinc-600 transition-all"
+                  onClick={() => { setEditingHolding(h); setEditForm({ quantity: String(h.quantity), avg_price: String(h.avg_price) }) }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <span className="font-bold">{h.symbol}</span>
+                      {h.quote?.name && <span className="ml-2 text-xs text-zinc-400">{h.quote.name}</span>}
+                    </div>
+                    <span className="text-xs text-zinc-600">수정 →</span>
+                  </div>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="text-lg font-semibold">
+                        {h.quote?.price ? fmt(h.quote.price) : '-'}
+                      </p>
+                      <p className={`text-xs ${(h.quote?.changePercent ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        오늘 {(h.quote?.changePercent ?? 0) >= 0 ? '+' : ''}{h.quote?.changePercent?.toFixed(2) ?? '0'}%
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-zinc-300">{h.quantity}주 · 평단 {fmt(h.avg_price)}</p>
+                      <p className={`text-sm font-semibold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {pnl >= 0 ? '+' : ''}{fmt(pnl)} ({pnlPct.toFixed(2)}%)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 사이드바 — 메인 오른쪽 여백에 절대 위치 (xl 이상만) */}
+      <div
+        className="hidden xl:flex flex-col gap-4 absolute top-6 w-48"
+        style={{ left: 'calc(50% + 352px)' }}
+      >
+        {/* 전광판 환율 카드 */}
+        <div className="bg-black border border-amber-900/60 rounded-xl p-4 shadow-lg shadow-amber-900/10">
+          <p className="text-xs text-amber-700 mb-2 font-mono tracking-widest uppercase">USD / KRW</p>
+          <div className="font-mono">
+            <span className="text-2xl font-bold text-amber-400 tracking-tight">
+              ₩{Math.round(exchangeRate).toLocaleString('ko-KR')}
+            </span>
+            <span
+              className="ml-1 text-amber-400 text-xl"
+              style={{ opacity: tickerBlink ? 1 : 0, transition: 'opacity 0.1s' }}
+            >▮</span>
+          </div>
+          <p className="text-xs text-amber-900 mt-2 font-mono">
+            1 USD = ₩{Math.round(exchangeRate).toLocaleString()}
+          </p>
+        </div>
+
         {/* 주요 지수 카드 */}
-        <div className="bg-zinc-800 rounded-xl p-4">
+        <div className="bg-zinc-800/80 border border-zinc-700 rounded-xl p-4">
           <p className="text-xs text-zinc-500 mb-3 font-semibold uppercase tracking-wide">주요 지수</p>
           <div className="flex flex-col gap-3">
             {indices.map(idx => (
               <div key={idx.symbol} className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold">{INDEX_LABELS[idx.symbol] ?? idx.symbol}</p>
-                  <p className="text-sm font-bold">{idx.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-xs font-semibold text-zinc-300">{INDEX_LABELS[idx.symbol] ?? idx.symbol}</p>
+                  <p className="text-sm font-bold font-mono">
+                    {idx.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className={`text-xs font-semibold ${idx.changePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {idx.changePercent >= 0 ? '+' : ''}{idx.changePercent.toFixed(2)}%
                   </p>
-                  <p className={`text-xs ${idx.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <p className={`text-xs font-mono ${idx.change >= 0 ? 'text-green-400/70' : 'text-red-400/70'}`}>
                     {idx.change >= 0 ? '+' : ''}{idx.change.toFixed(2)}
                   </p>
                 </div>
@@ -332,9 +359,9 @@ export default function DashboardPage() {
               <p className="text-xs text-zinc-600">불러오는 중...</p>
             )}
           </div>
+          <p className="text-xs text-zinc-700 mt-3 text-right">1분마다 갱신</p>
         </div>
       </div>
-      </div>{/* /lg:grid */}
 
       {/* 종목 수정 모달 */}
       {editingHolding && (
