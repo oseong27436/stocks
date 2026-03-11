@@ -23,6 +23,36 @@ export async function GET(req: NextRequest) {
   const admin = await verifyAdmin(req)
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { searchParams } = new URL(req.url)
+  const detail = searchParams.get('detail')
+  const id = searchParams.get('id')
+
+  if (detail === 'user' && id) {
+    const [{ data: authUser }, { data: profile }, { data: memberships }, { data: holdings }] = await Promise.all([
+      adminSupabase.auth.admin.getUserById(id),
+      adminSupabase.from('user_profiles').select('*').eq('id', id).single(),
+      adminSupabase.from('group_members').select('group_id, groups(id, name)').eq('user_id', id),
+      adminSupabase.from('holdings').select('symbol, quantity, avg_price').eq('user_id', id),
+    ])
+    return NextResponse.json({
+      id,
+      email: authUser.user?.email ?? null,
+      nickname: profile?.nickname,
+      is_admin: profile?.is_admin,
+      created_at: profile?.created_at,
+      groups: memberships?.map((m: { group_id: string; groups: { id: string; name: string } | null }) => m.groups).filter(Boolean) ?? [],
+      holdings: holdings ?? [],
+    })
+  }
+
+  if (detail === 'group' && id) {
+    const [{ data: group }, { data: members }] = await Promise.all([
+      adminSupabase.from('groups').select('id, name, created_at, created_by, user_profiles!groups_created_by_fkey(nickname)').eq('id', id).single(),
+      adminSupabase.from('group_members').select('user_id, joined_at, user_profiles(nickname)').eq('group_id', id),
+    ])
+    return NextResponse.json({ group, members: members ?? [] })
+  }
+
   const [{ data: users }, { data: groups }] = await Promise.all([
     adminSupabase
       .from('user_profiles')
