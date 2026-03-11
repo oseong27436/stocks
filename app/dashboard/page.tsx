@@ -284,29 +284,37 @@ export default function DashboardPage() {
               return (
                 <div
                   key={h.id}
-                  className="bg-zinc-800 rounded-xl p-4 cursor-pointer hover:ring-1 hover:ring-zinc-600 transition-all"
+                  className="bg-zinc-800 rounded-xl p-5 cursor-pointer hover:bg-zinc-750 hover:ring-1 hover:ring-zinc-600 transition-all"
                   onClick={() => { setEditingHolding(h); setEditForm({ quantity: String(h.quantity), avg_price: String(h.avg_price) }) }}
                 >
-                  <div className="flex items-center justify-between mb-2">
+                  {/* 상단: 종목명 + 오늘 등락 */}
+                  <div className="flex items-start justify-between mb-3">
                     <div>
-                      <span className="font-bold">{h.symbol}</span>
-                      {h.quote?.name && <span className="ml-2 text-xs text-zinc-400">{h.quote.name}</span>}
-                    </div>
-                    <span className="text-xs text-zinc-600">수정 →</span>
-                  </div>
-                  <div className="flex items-end justify-between">
-                    <div>
-                      <p className="text-lg font-semibold">
-                        {h.quote?.price ? fmt(h.quote.price) : '-'}
-                      </p>
-                      <p className={`text-xs ${(h.quote?.changePercent ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        오늘 {(h.quote?.changePercent ?? 0) >= 0 ? '+' : ''}{h.quote?.changePercent?.toFixed(2) ?? '0'}%
-                      </p>
+                      <span className="text-lg font-bold tracking-wide">{h.symbol}</span>
+                      {h.quote?.name && <p className="text-xs text-zinc-500 mt-0.5">{h.quote.name}</p>}
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-zinc-300">{h.quantity}주 · 평단 {fmt(h.avg_price)}</p>
-                      <p className={`text-sm font-semibold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {pnl >= 0 ? '+' : ''}{fmt(pnl)} ({pnlPct.toFixed(2)}%)
+                      <span className={`text-sm font-semibold px-2 py-0.5 rounded-full ${(h.quote?.changePercent ?? 0) >= 0 ? 'bg-green-400/10 text-green-400' : 'bg-red-400/10 text-red-400'}`}>
+                        {(h.quote?.changePercent ?? 0) >= 0 ? '+' : ''}{h.quote?.changePercent?.toFixed(2) ?? '0'}%
+                      </span>
+                      <p className="text-xs text-zinc-600 mt-1">오늘</p>
+                    </div>
+                  </div>
+
+                  {/* 하단: 현재가 / 수익 */}
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="text-2xl font-bold tabular-nums">
+                        {h.quote?.price ? fmt(h.quote.price) : '-'}
+                      </p>
+                      <p className="text-xs text-zinc-500 mt-0.5">{h.quantity}주 · 평단 {fmt(h.avg_price)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-xl font-bold tabular-nums ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {pnl >= 0 ? '+' : ''}{fmt(pnl)}
+                      </p>
+                      <p className={`text-sm font-semibold ${pnl >= 0 ? 'text-green-400/70' : 'text-red-400/70'}`}>
+                        {pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%
                       </p>
                     </div>
                   </div>
