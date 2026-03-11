@@ -47,6 +47,7 @@ export default function DashboardPage() {
   const [editSaving, setEditSaving] = useState(false)
   const [selectedPrice, setSelectedPrice] = useState<number | null>(null)
   const [tickerBlink, setTickerBlink] = useState(true)
+  const [clock, setClock] = useState('')
 
   const fetchMarketData = useCallback(async () => {
     const [rateRes, idxRes] = await Promise.all([
@@ -99,9 +100,14 @@ export default function DashboardPage() {
     return () => clearInterval(id)
   }, [fetchMarketData])
 
-  // 전광판 커서 깜빡임
+  // 전광판 커서 깜빡임 + 시계
   useEffect(() => {
-    const id = setInterval(() => setTickerBlink(b => !b), 600)
+    const update = () => {
+      setTickerBlink(b => !b)
+      setClock(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }))
+    }
+    update()
+    const id = setInterval(update, 1000)
     return () => clearInterval(id)
   }, [])
 
@@ -316,6 +322,12 @@ export default function DashboardPage() {
         className="hidden xl:flex flex-col gap-4 fixed top-1/2 -translate-y-1/2 w-48"
         style={{ left: 'calc(50% + 352px)' }}
       >
+        {/* 시계 */}
+        <div className="bg-black border border-amber-900/60 rounded-xl p-4 shadow-lg shadow-amber-900/10 text-center">
+          <p className="text-xs text-amber-700 mb-1 font-mono tracking-widest uppercase">KST</p>
+          <p className="text-2xl font-bold font-mono text-amber-400 tracking-widest tabular-nums">{clock}</p>
+        </div>
+
         {/* 전광판 환율 카드 */}
         <div className="bg-black border border-amber-900/60 rounded-xl p-4 shadow-lg shadow-amber-900/10">
           <p className="text-xs text-amber-700 mb-2 font-mono tracking-widest uppercase">USD / KRW</p>
@@ -335,7 +347,10 @@ export default function DashboardPage() {
 
         {/* 주요 지수 카드 */}
         <div className="bg-zinc-800/80 border border-zinc-700 rounded-xl p-4">
-          <p className="text-xs text-zinc-500 mb-3 font-semibold uppercase tracking-wide">주요 지수</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wide">주요 지수</p>
+            <p className="text-xs text-zinc-600">전일比</p>
+          </div>
           <div className="flex flex-col gap-3">
             {indices.map(idx => (
               <div key={idx.symbol} className="flex items-center justify-between">
