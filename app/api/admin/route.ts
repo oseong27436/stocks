@@ -40,7 +40,8 @@ export async function GET(req: NextRequest) {
       nickname: profile?.nickname,
       is_admin: profile?.is_admin,
       created_at: profile?.created_at,
-      groups: memberships?.map((m: { group_id: string; groups: { id: string; name: string } | null }) => m.groups).filter(Boolean) ?? [],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      groups: memberships?.map((m: any) => m.groups).flat().filter(Boolean) ?? [],
       holdings: holdings ?? [],
     })
   }
