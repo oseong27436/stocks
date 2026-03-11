@@ -260,7 +260,7 @@ export default function GroupDetailPage() {
                     <YAxis tick={{ fontSize: 11, fill: '#71717a' }} unit="%" />
                     <Tooltip
                       contentStyle={{ backgroundColor: '#27272a', border: 'none', borderRadius: 8, fontSize: 12 }}
-                      formatter={(v: number) => [`${v >= 0 ? '+' : ''}${v}%`]}
+                      formatter={(v: any) => [`${Number(v) >= 0 ? '+' : ''}${v}%`]}
                     />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                     <ReferenceLine y={0} stroke="#52525b" strokeDasharray="3 3" />
