@@ -313,7 +313,7 @@ export default function DashboardPage() {
 
       {/* 사이드바 — 메인 오른쪽 여백에 절대 위치 (xl 이상만) */}
       <div
-        className="hidden xl:flex flex-col gap-4 absolute top-6 w-48"
+        className="hidden xl:flex flex-col gap-4 fixed top-1/2 -translate-y-1/2 w-48"
         style={{ left: 'calc(50% + 352px)' }}
       >
         {/* 전광판 환율 카드 */}
