@@ -35,6 +35,9 @@ export default function DashboardPage() {
   const [nickname, setNickname] = useState('')
   const [nicknameSaving, setNicknameSaving] = useState(false)
   const [pendingUserId, setPendingUserId] = useState('')
+  const [editingHolding, setEditingHolding] = useState<HoldingWithQuote | null>(null)
+  const [editForm, setEditForm] = useState({ quantity: '', avg_price: '' })
+  const [editSaving, setEditSaving] = useState(false)
 
   const fetchHoldings = useCallback(async (userId: string) => {
     const { data } = await supabase.from('holdings').select('*').eq('user_id', userId)
@@ -124,6 +127,24 @@ export default function DashboardPage() {
   async function handleDelete(id: string) {
     await supabase.from('holdings').delete().eq('id', id)
     setHoldings(prev => prev.filter(h => h.id !== id))
+    setEditingHolding(null)
+  }
+
+  async function handleEditSave(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editingHolding) return
+    setEditSaving(true)
+    await supabase.from('holdings').update({
+      quantity: parseFloat(editForm.quantity),
+      avg_price: parseFloat(editForm.avg_price),
+    }).eq('id', editingHolding.id)
+    const { data: session } = await supabase.auth.getSession()
+    if (session.session) {
+      const h = await fetchHoldings(session.session.user.id)
+      setHoldings(h)
+    }
+    setEditingHolding(null)
+    setEditSaving(false)
   }
 
   const rate = currency === 'KRW' ? exchangeRate : 1
@@ -225,13 +246,13 @@ export default function DashboardPage() {
             const pnl = current - invested
             const pnlPct = (pnl / invested) * 100
             return (
-              <div key={h.id} className="bg-zinc-800 rounded-xl p-4">
+              <div key={h.id} className="bg-zinc-800 rounded-xl p-4 cursor-pointer hover:ring-1 hover:ring-zinc-600 transition-all" onClick={() => { setEditingHolding(h); setEditForm({ quantity: String(h.quantity), avg_price: String(h.avg_price) }) }}>
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <span className="font-bold">{h.symbol}</span>
                     {h.quote?.name && <span className="ml-2 text-xs text-zinc-400">{h.quote.name}</span>}
                   </div>
-                  <button onClick={() => handleDelete(h.id)} className="text-xs text-zinc-500 hover:text-red-400">삭제</button>
+                  <span className="text-xs text-zinc-600">수정 →</span>
                 </div>
                 <div className="flex items-end justify-between">
                   <div>
@@ -252,6 +273,47 @@ export default function DashboardPage() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* 종목 수정 모달 */}
+      {editingHolding && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center px-4 z-50" onClick={() => setEditingHolding(null)}>
+          <form onSubmit={handleEditSave} className="bg-zinc-800 rounded-xl p-6 w-full max-w-sm flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">{editingHolding.symbol} 수정</h3>
+              {editingHolding.quote?.price && (
+                <span className="text-xs text-zinc-400">현재가 {fmt(editingHolding.quote.price)}</span>
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-zinc-400">수량 (주)</label>
+              <input
+                type="number"
+                value={editForm.quantity}
+                onChange={e => setEditForm(f => ({ ...f, quantity: e.target.value }))}
+                required min="0.001" step="any"
+                className="bg-zinc-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-zinc-400">평단가 ($)</label>
+              <input
+                type="number"
+                value={editForm.avg_price}
+                onChange={e => setEditForm(f => ({ ...f, avg_price: e.target.value }))}
+                required min="0.01" step="any"
+                className="bg-zinc-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => handleDelete(editingHolding.id)} className="bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-lg py-2 px-3 text-sm transition-colors">삭제</button>
+              <button type="button" onClick={() => setEditingHolding(null)} className="flex-1 bg-zinc-700 hover:bg-zinc-600 rounded-lg py-2 text-sm transition-colors">취소</button>
+              <button type="submit" disabled={editSaving} className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg py-2 text-sm font-semibold transition-colors">
+                {editSaving ? '저장 중...' : '저장'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

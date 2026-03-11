@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const YF_HEADERS = { 'User-Agent': 'Mozilla/5.0' }
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
+async function fetchQuote(symbol: string) {
+  const res = await fetch(
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`,
+    { headers: { 'User-Agent': UA, 'Accept': 'application/json' } }
+  )
+  const data = await res.json()
+  const meta = data?.chart?.result?.[0]?.meta ?? {}
+  return {
+    symbol,
+    name: meta.longName || meta.shortName || symbol,
+    price: meta.regularMarketPrice ?? 0,
+    change: meta.regularMarketChange ?? 0,
+    changePercent: meta.regularMarketChangePercent ?? 0,
+  }
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -11,7 +27,7 @@ export async function GET(req: NextRequest) {
     try {
       const res = await fetch(
         `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=6&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query`,
-        { headers: YF_HEADERS }
+        { headers: { 'User-Agent': UA } }
       )
       const json = await res.json()
       const items = (json.quotes ?? [])
@@ -29,19 +45,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const res = await fetch(
-      `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbolsParam)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,longName,shortName`,
-      { headers: YF_HEADERS }
-    )
-    const json = await res.json()
-    const results = json?.quoteResponse?.result ?? []
-    const quotes = results.map((q: any) => ({
-      symbol: q.symbol,
-      name: q.longName || q.shortName || q.symbol,
-      price: q.regularMarketPrice ?? 0,
-      change: q.regularMarketChange ?? 0,
-      changePercent: q.regularMarketChangePercent ?? 0,
-    }))
+    const symbols = symbolsParam.split(',').map(s => s.trim()).filter(Boolean)
+    const quotes = await Promise.all(symbols.map(fetchQuote))
     return NextResponse.json(quotes)
   } catch (e) {
     console.error('quote error:', e)
