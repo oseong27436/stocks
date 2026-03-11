@@ -30,6 +30,7 @@ export default function DashboardPage() {
     (typeof window !== 'undefined' && localStorage.getItem('currency') as 'USD' | 'KRW') || 'USD'
   )
   const [exchangeRate, setExchangeRate] = useState<number>(1)
+  const [indices, setIndices] = useState<QuoteData[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
   const [showNickname, setShowNickname] = useState(false)
   const [nickname, setNickname] = useState('')
@@ -65,12 +66,15 @@ export default function DashboardPage() {
       }
       setProfile(p)
       if (p?.is_admin) setIsAdmin(true)
-      const [h, rateRes] = await Promise.all([
+      const [h, rateRes, idxRes] = await Promise.all([
         fetchHoldings(userId),
         fetch('/api/stocks?symbols=USDKRW=X'),
+        fetch('/api/stocks?symbols=%5EGSPC,%5EIXIC,%5EDJI'),
       ])
       const rateData = await rateRes.json()
       if (rateData?.[0]?.price) setExchangeRate(rateData[0].price)
+      const idxData = await idxRes.json()
+      if (Array.isArray(idxData)) setIndices(idxData)
       setHoldings(h)
       setLoading(false)
     })
@@ -115,12 +119,15 @@ export default function DashboardPage() {
     setProfile(p)
     if (p?.is_admin) setIsAdmin(true)
     setShowNickname(false)
-    const [h, rateRes] = await Promise.all([
+    const [h, rateRes, idxRes] = await Promise.all([
       fetchHoldings(pendingUserId),
       fetch('/api/stocks?symbols=USDKRW=X'),
+      fetch('/api/stocks?symbols=%5EGSPC,%5EIXIC,%5EDJI'),
     ])
     const rateData = await rateRes.json()
     if (rateData?.[0]?.price) setExchangeRate(rateData[0].price)
+    const idxData = await idxRes.json()
+    if (Array.isArray(idxData)) setIndices(idxData)
     setHoldings(h)
     setNicknameSaving(false)
   }
@@ -146,6 +153,12 @@ export default function DashboardPage() {
     }
     setEditingHolding(null)
     setEditSaving(false)
+  }
+
+  const INDEX_LABELS: Record<string, string> = {
+    '^GSPC': 'S&P 500',
+    '^IXIC': 'NASDAQ',
+    '^DJI': 'DOW',
   }
 
   const rate = currency === 'KRW' ? exchangeRate : 1
@@ -185,7 +198,10 @@ export default function DashboardPage() {
   )
 
   return (
-    <div className="min-h-screen px-4 py-6 max-w-2xl mx-auto">
+    <div className="min-h-screen px-4 py-6 max-w-5xl mx-auto">
+      <div className="lg:grid lg:grid-cols-[1fr_240px] lg:gap-6">
+      {/* 메인 컨텐츠 */}
+      <div>
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -276,6 +292,49 @@ export default function DashboardPage() {
           })}
         </div>
       )}
+
+      </div>{/* /메인 컨텐츠 */}
+
+      {/* 사이드바 — 데스크탑 전용 */}
+      <div className="hidden lg:flex lg:flex-col gap-4 pt-0">
+        {/* 환율 카드 */}
+        <div className="bg-zinc-800 rounded-xl p-4">
+          <p className="text-xs text-zinc-500 mb-3 font-semibold uppercase tracking-wide">환율</p>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-xs text-zinc-400">USD / KRW</p>
+              <p className="text-xl font-bold">₩{Math.round(exchangeRate).toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 주요 지수 카드 */}
+        <div className="bg-zinc-800 rounded-xl p-4">
+          <p className="text-xs text-zinc-500 mb-3 font-semibold uppercase tracking-wide">주요 지수</p>
+          <div className="flex flex-col gap-3">
+            {indices.map(idx => (
+              <div key={idx.symbol} className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold">{INDEX_LABELS[idx.symbol] ?? idx.symbol}</p>
+                  <p className="text-sm font-bold">{idx.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                </div>
+                <div className="text-right">
+                  <p className={`text-xs font-semibold ${idx.changePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {idx.changePercent >= 0 ? '+' : ''}{idx.changePercent.toFixed(2)}%
+                  </p>
+                  <p className={`text-xs ${idx.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {idx.change >= 0 ? '+' : ''}{idx.change.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {indices.length === 0 && (
+              <p className="text-xs text-zinc-600">불러오는 중...</p>
+            )}
+          </div>
+        </div>
+      </div>
+      </div>{/* /lg:grid */}
 
       {/* 종목 수정 모달 */}
       {editingHolding && (
