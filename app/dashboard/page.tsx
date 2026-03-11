@@ -26,6 +26,8 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<{ symbol: string; name: string }[]>([])
   const [searching, setSearching] = useState(false)
+  const [currency, setCurrency] = useState<'USD' | 'KRW'>('USD')
+  const [exchangeRate, setExchangeRate] = useState<number>(1)
 
   const fetchHoldings = useCallback(async (userId: string) => {
     const { data } = await supabase.from('holdings').select('*').eq('user_id', userId)
@@ -45,7 +47,12 @@ export default function DashboardPage() {
       const userId = data.session.user.id
       const { data: p } = await supabase.from('user_profiles').select('*').eq('id', userId).single()
       setProfile(p)
-      const h = await fetchHoldings(userId)
+      const [h, rateRes] = await Promise.all([
+        fetchHoldings(userId),
+        fetch('/api/stocks?symbols=USDKRW=X'),
+      ])
+      const rateData = await rateRes.json()
+      if (rateData?.[0]?.price) setExchangeRate(rateData[0].price)
       setHoldings(h)
       setLoading(false)
     })
@@ -86,6 +93,11 @@ export default function DashboardPage() {
     setHoldings(prev => prev.filter(h => h.id !== id))
   }
 
+  const rate = currency === 'KRW' ? exchangeRate : 1
+  const fmt = (usd: number) => currency === 'KRW'
+    ? '₩' + Math.round(usd * rate).toLocaleString('ko-KR')
+    : '$' + usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
   const totalInvested = holdings.reduce((s, h) => s + h.avg_price * h.quantity, 0)
   const totalCurrent = holdings.reduce((s, h) => s + (h.quote?.price ?? h.avg_price) * h.quantity, 0)
   const totalPnl = totalCurrent - totalInvested
@@ -112,12 +124,23 @@ export default function DashboardPage() {
 
       {/* 총계 카드 */}
       <div className="bg-zinc-800 rounded-xl p-5 mb-6">
-        <p className="text-sm text-zinc-400 mb-1">총 평가금액</p>
-        <p className="text-3xl font-bold">${totalCurrent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-sm text-zinc-400">총 평가금액</p>
+          <button
+            onClick={() => setCurrency(c => c === 'USD' ? 'KRW' : 'USD')}
+            className="text-xs bg-zinc-700 hover:bg-zinc-600 rounded-full px-3 py-1 transition-colors font-semibold"
+          >
+            {currency === 'USD' ? '$ USD → ₩ KRW' : '₩ KRW → $ USD'}
+          </button>
+        </div>
+        <p className="text-3xl font-bold">{fmt(totalCurrent)}</p>
         <p className={`mt-1 text-sm font-semibold ${totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-          {totalPnl >= 0 ? '+' : ''}${totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          {totalPnl >= 0 ? '+' : ''}{fmt(totalPnl)}
           {' '}({totalPnlPct >= 0 ? '+' : ''}{totalPnlPct.toFixed(2)}%)
         </p>
+        {currency === 'KRW' && (
+          <p className="mt-1 text-xs text-zinc-500">환율 ₩{Math.round(exchangeRate).toLocaleString()}/$ 기준</p>
+        )}
       </div>
 
       {/* 종목 목록 */}
@@ -150,15 +173,17 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex items-end justify-between">
                   <div>
-                    <p className="text-lg font-semibold">${h.quote?.price?.toFixed(2) ?? '-'}</p>
+                    <p className="text-lg font-semibold">
+                      {h.quote?.price ? fmt(h.quote.price) : '-'}
+                    </p>
                     <p className={`text-xs ${(h.quote?.changePercent ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       오늘 {(h.quote?.changePercent ?? 0) >= 0 ? '+' : ''}{h.quote?.changePercent?.toFixed(2) ?? '0'}%
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-zinc-300">{h.quantity}주 · 평단 ${h.avg_price}</p>
+                    <p className="text-sm text-zinc-300">{h.quantity}주 · 평단 {fmt(h.avg_price)}</p>
                     <p className={`text-sm font-semibold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} ({pnlPct.toFixed(2)}%)
+                      {pnl >= 0 ? '+' : ''}{fmt(pnl)} ({pnlPct.toFixed(2)}%)
                     </p>
                   </div>
                 </div>
