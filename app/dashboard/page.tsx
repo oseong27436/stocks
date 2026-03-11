@@ -37,7 +37,9 @@ export default function DashboardPage() {
     (typeof window !== 'undefined' && localStorage.getItem('currency') as 'USD' | 'KRW') || 'USD'
   )
   const [exchangeRate, setExchangeRate] = useState<number>(1)
-  const [hideAmounts, setHideAmounts] = useState(false)
+  const [hideAmounts, setHideAmounts] = useState(() =>
+    typeof window !== 'undefined' && localStorage.getItem('hideAmounts') === 'true'
+  )
   const [indices, setIndices] = useState<QuoteData[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
   const [showNickname, setShowNickname] = useState(false)
@@ -251,7 +253,7 @@ export default function DashboardPage() {
             <p className="text-sm text-zinc-400">총 평가금액</p>
             <div className="flex gap-1.5">
               <button
-                onClick={() => setHideAmounts(h => !h)}
+                onClick={() => { const next = !hideAmounts; localStorage.setItem('hideAmounts', String(next)); setHideAmounts(next) }}
                 className="text-xs bg-zinc-700 hover:bg-zinc-600 rounded-full px-2 py-1 transition-colors"
                 title="금액 숨기기"
               >

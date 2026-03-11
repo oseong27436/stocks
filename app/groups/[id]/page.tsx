@@ -42,6 +42,9 @@ export default function GroupDetailPage() {
   const [currency, setCurrency] = useState<'USD' | 'KRW'>(() =>
     (typeof window !== 'undefined' && localStorage.getItem('currency') as 'USD' | 'KRW') || 'USD'
   )
+  const [hideAmounts, setHideAmounts] = useState(() =>
+    typeof window !== 'undefined' && localStorage.getItem('hideAmounts') === 'true'
+  )
   const [exchangeRate, setExchangeRate] = useState<number>(1)
   const [token, setToken] = useState('')
 
@@ -115,9 +118,16 @@ export default function GroupDetailPage() {
   }
 
   const rate = currency === 'KRW' ? exchangeRate : 1
-  const fmt = (usd: number) => currency === 'KRW'
+  const fmtRaw = (usd: number) => currency === 'KRW'
     ? '₩' + Math.round(usd * rate).toLocaleString('ko-KR')
     : '$' + usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const fmt = (usd: number) => hideAmounts ? '••••••' : fmtRaw(usd)
+
+  function toggleHide() {
+    const next = !hideAmounts
+    localStorage.setItem('hideAmounts', String(next))
+    setHideAmounts(next)
+  }
 
   // 차트용 날짜별 데이터 변환
   const chartData = (() => {
@@ -157,6 +167,9 @@ export default function GroupDetailPage() {
           <h1 className="text-xl font-bold">{groupName}</h1>
         </div>
         <div className="flex gap-2">
+          <button onClick={toggleHide} className="text-xs bg-zinc-800 hover:bg-zinc-700 rounded-full px-2 py-1 transition-colors" title="금액 숨기기">
+            {hideAmounts ? '👁' : '🙈'}
+          </button>
           <button onClick={toggleCurrency} className="text-xs bg-zinc-800 hover:bg-zinc-700 rounded-full px-2 py-1 transition-colors font-semibold">
             {currency === 'USD' ? '$ → ₩' : '₩ → $'}
           </button>
