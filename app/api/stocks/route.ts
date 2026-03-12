@@ -20,6 +20,20 @@ async function fetchQuote(symbol: string) {
     change,
     changePercent,
     prevClose,
+    currency: (meta.currency ?? 'USD') as string,
+  }
+}
+
+async function fetchUsdKrwRate(): Promise<number> {
+  try {
+    const res = await fetch(
+      'https://query1.finance.yahoo.com/v8/finance/chart/USDKRW=X?interval=1d&range=1d',
+      { headers: { 'User-Agent': UA, 'Accept': 'application/json' } }
+    )
+    const data = await res.json()
+    return data?.chart?.result?.[0]?.meta?.regularMarketPrice ?? 1350
+  } catch {
+    return 1350
   }
 }
 
@@ -52,7 +66,24 @@ export async function GET(req: NextRequest) {
   try {
     const symbols = symbolsParam.split(',').map(s => s.trim()).filter(Boolean)
     const quotes = await Promise.all(symbols.map(fetchQuote))
-    return NextResponse.json(quotes)
+
+    // KRW 종목이 있으면 환율 가져와서 USD로 변환
+    const hasKrw = quotes.some(q => q.currency === 'KRW')
+    const rate = hasKrw ? await fetchUsdKrwRate() : 1
+
+    const normalized = quotes.map(q => {
+      if (q.currency === 'KRW' && rate > 1) {
+        return {
+          ...q,
+          price: q.price / rate,
+          change: q.change / rate,
+          prevClose: q.prevClose / rate,
+        }
+      }
+      return q
+    })
+
+    return NextResponse.json(normalized)
   } catch (e) {
     console.error('quote error:', e)
     return NextResponse.json([], { status: 500 })
