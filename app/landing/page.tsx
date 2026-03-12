@@ -380,7 +380,7 @@ function InteractiveDemo() {
 ════════════════════════════════════════ */
 function GroupRanking() {
   const members = [
-    { name: '오성', rate: 24.3, color: 'bg-blue-500' },
+    { name: '민준', rate: 24.3, color: 'bg-blue-500' },
     { name: '지훈', rate: 18.7, color: 'bg-purple-500' },
     { name: '민지', rate: 11.2, color: 'bg-pink-500' },
     { name: '현우', rate: -3.4, color: 'bg-orange-500' },

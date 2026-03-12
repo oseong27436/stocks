@@ -41,7 +41,7 @@ export default function SignupPage() {
               value={nickname}
               onChange={e => setNickname(e.target.value)}
               required
-              placeholder="예: 오성"
+              placeholder="닉네임 입력"
               className="bg-zinc-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
