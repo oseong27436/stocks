@@ -203,8 +203,14 @@ export default function DashboardPage() {
   const totalPnlPct = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0
   const totalDailyChange = holdings.reduce((s, h) => s + (h.quote?.change ?? 0) * h.quantity, 0)
   const totalDailyChangePct = totalCurrent > 0 ? (totalDailyChange / (totalCurrent - totalDailyChange)) * 100 : 0
-
-
+  if (loading) return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-zinc-600 border-t-zinc-300 rounded-full animate-spin" />
+        <span className="text-zinc-500 text-sm">로딩 중...</span>
+      </div>
+    </div>
+  )
 
   if (showNickname) return (
     <div className="flex min-h-screen items-center justify-center px-4">

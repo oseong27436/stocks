@@ -156,8 +156,14 @@ export default function GroupDetailPage() {
       return { date, rows: row }
     })
   })()
-
-
+  if (loading) return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-zinc-600 border-t-zinc-300 rounded-full animate-spin" />
+        <span className="text-zinc-500 text-sm">로딩 중...</span>
+      </div>
+    </div>
+  )
 
   return (
     <div className="min-h-screen px-4 py-6 max-w-2xl mx-auto">
