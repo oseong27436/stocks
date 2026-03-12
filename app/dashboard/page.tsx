@@ -201,6 +201,8 @@ export default function DashboardPage() {
   const totalCurrent = holdings.reduce((s, h) => s + (h.quote?.price ?? h.avg_price) * h.quantity, 0)
   const totalPnl = totalCurrent - totalInvested
   const totalPnlPct = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0
+  const totalDailyChange = holdings.reduce((s, h) => s + (h.quote?.change ?? 0) * h.quantity, 0)
+  const totalDailyChangePct = totalCurrent > 0 ? (totalDailyChange / (totalCurrent - totalDailyChange)) * 100 : 0
 
   if (loading) return <div className="flex min-h-screen items-center justify-center text-zinc-400">로딩 중...</div>
 
@@ -278,12 +280,25 @@ export default function DashboardPage() {
             </div>
           </div>
           <p className="text-3xl font-bold">{fmt(totalCurrent)}</p>
-          <p className={`mt-1 text-sm font-semibold ${totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {totalPnl >= 0 ? '+' : ''}{fmt(totalPnl)}
-            {' '}({totalPnlPct >= 0 ? '+' : ''}{totalPnlPct.toFixed(2)}%)
-          </p>
+          <div className="mt-2 flex items-center gap-3">
+            <div>
+              <p className="text-xs text-zinc-500 mb-0.5">오늘</p>
+              <p className={`text-sm font-semibold ${totalDailyChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {totalDailyChange >= 0 ? '+' : ''}{fmt(totalDailyChange)}
+                {' '}({totalDailyChangePct >= 0 ? '+' : ''}{totalDailyChangePct.toFixed(2)}%)
+              </p>
+            </div>
+            <div className="w-px h-8 bg-zinc-700" />
+            <div>
+              <p className="text-xs text-zinc-500 mb-0.5">총 손익</p>
+              <p className={`text-sm font-semibold ${totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {totalPnl >= 0 ? '+' : ''}{fmt(totalPnl)}
+                {' '}({totalPnlPct >= 0 ? '+' : ''}{totalPnlPct.toFixed(2)}%)
+              </p>
+            </div>
+          </div>
           {currency === 'KRW' && (
-            <p className="mt-1 text-xs text-zinc-500">환율 ₩{Math.round(exchangeRate).toLocaleString()}/$ 기준</p>
+            <p className="mt-2 text-xs text-zinc-500">환율 ₩{Math.round(exchangeRate).toLocaleString()}/$ 기준</p>
           )}
         </div>
 
