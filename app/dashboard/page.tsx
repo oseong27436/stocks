@@ -117,6 +117,16 @@ export default function DashboardPage() {
       ])
       setHoldings(h)
       setLoading(false)
+      // 오늘 스냅샷 즉시 저장 (크론과 별개로 앱 진입 시 upsert)
+      if (h.length > 0) {
+        const tv = h.reduce((s: number, x: HoldingWithQuote) => s + (x.quote?.price ?? x.avg_price) * x.quantity, 0)
+        const ti = h.reduce((s: number, x: HoldingWithQuote) => s + x.avg_price * x.quantity, 0)
+        fetch('/api/snapshot-me', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', authorization: `Bearer ${data.session.access_token}` },
+          body: JSON.stringify({ totalValue: tv, totalInvested: ti }),
+        }).catch(() => {})
+      }
     })
   }, [router, fetchHoldings, fetchMarketData])
 
