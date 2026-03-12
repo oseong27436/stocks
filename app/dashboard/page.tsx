@@ -54,6 +54,23 @@ export default function DashboardPage() {
   const [clock, setClock] = useState('')
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [onboardingStep, setOnboardingStep] = useState(0)
+  const [showAnalysis, setShowAnalysis] = useState(false)
+  const [mainTab, setMainTab] = useState<'holdings' | 'history'>('holdings')
+  const [myHistory, setMyHistory] = useState<any[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyDays, setHistoryDays] = useState(14)
+
+  const fetchMyHistory = useCallback(async (days: number) => {
+    setHistoryLoading(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const res = await fetch(`/api/my-history?days=${days}`, {
+      headers: { authorization: `Bearer ${session.access_token}` }
+    })
+    const data = await res.json()
+    setMyHistory(Array.isArray(data) ? data : [])
+    setHistoryLoading(false)
+  }, [])
 
   const fetchMarketData = useCallback(async () => {
     const [rateRes, idxRes] = await Promise.all([
@@ -107,6 +124,11 @@ export default function DashboardPage() {
     const id = setInterval(fetchMarketData, 60_000)
     return () => clearInterval(id)
   }, [fetchMarketData])
+
+  // 히스토리 탭 열릴 때 데이터 로드
+  useEffect(() => {
+    if (mainTab === 'history') fetchMyHistory(historyDays)
+  }, [mainTab, historyDays, fetchMyHistory])
 
   // 전광판 커서 깜빡임 + 시계
   useEffect(() => {
@@ -261,7 +283,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 총계 카드 */}
-        <div className="bg-zinc-800 rounded-xl p-5 mb-4">
+        <div className="bg-zinc-800 rounded-xl p-5 mb-4 cursor-pointer hover:bg-zinc-700/60 transition-colors" onClick={() => holdings.length > 0 && setShowAnalysis(true)}>
           <div className="flex items-center justify-between mb-1">
             <p className="text-sm text-zinc-400">총 평가금액</p>
             <div className="flex gap-1.5">
@@ -338,18 +360,84 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 종목 목록 */}
+        {/* 탭 */}
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold">보유 종목</h2>
-          <button
-            onClick={() => { setShowAdd(true); setSearchQuery(''); setSearchResults([]); setForm({ symbol: '', quantity: '', avg_price: '', total_invested: '' }); setSelectedPrice(null); setPriceMode('avg') }}
-            className="text-sm bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5 transition-colors"
-          >
-            + 추가
-          </button>
+          <div className="flex gap-1 bg-zinc-800 rounded-lg p-1">
+            <button
+              onClick={() => setMainTab('holdings')}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${mainTab === 'holdings' ? 'bg-zinc-600 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}`}
+            >보유 종목</button>
+            <button
+              onClick={() => setMainTab('history')}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${mainTab === 'history' ? 'bg-zinc-600 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}`}
+            >내 히스토리</button>
+          </div>
+          {mainTab === 'holdings' && (
+            <button
+              onClick={() => { setShowAdd(true); setSearchQuery(''); setSearchResults([]); setForm({ symbol: '', quantity: '', avg_price: '', total_invested: '' }); setSelectedPrice(null); setPriceMode('avg') }}
+              className="text-sm bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5 transition-colors"
+            >+ 추가</button>
+          )}
         </div>
 
-        {holdings.length === 0 ? (
+        {mainTab === 'history' ? (
+          <div>
+            {/* 기간 선택 */}
+            <div className="flex gap-2 mb-4">
+              {[7, 14, 30].map(d => (
+                <button
+                  key={d}
+                  onClick={() => setHistoryDays(d)}
+                  className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${historyDays === d ? 'bg-blue-600 font-semibold' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                >{d}일</button>
+              ))}
+            </div>
+            {historyLoading ? (
+              <div className="flex flex-col gap-3">
+                {[1,2,3,4,5,6,7].map(i => (
+                  <div key={i} className="bg-zinc-800 rounded-xl px-4 py-3 flex items-center justify-between">
+                    <div className="flex flex-col gap-1.5">
+                      <div className="h-3 w-20 skeleton" />
+                      <div className="h-3.5 w-32 skeleton" />
+                    </div>
+                    <div className="h-5 w-24 skeleton" />
+                  </div>
+                ))}
+              </div>
+            ) : myHistory.length === 0 ? (
+              <div className="bg-zinc-800 rounded-xl p-8 text-center text-zinc-400 text-sm">
+                아직 히스토리가 없어요.<br />
+                <span className="text-xs text-zinc-600 mt-1 block">매일 자동 저장됩니다.</span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {myHistory.map((snap, i) => {
+                  const date = new Date(snap.date)
+                  const label = date.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
+                  const isFirst = i === myHistory.length - 1
+                  return (
+                    <div key={snap.date} className={`card-in bg-zinc-800 rounded-xl px-4 py-3 flex items-center justify-between ${isFirst ? 'opacity-60' : ''}`} style={{ animationDelay: `${i * 40}ms` }}>
+                      <div>
+                        <p className="text-xs text-zinc-500 mb-0.5">{label}</p>
+                        <p className="text-sm font-semibold">{fmt(snap.totalValue)}</p>
+                      </div>
+                      <div className="text-right">
+                        {!isFirst && (
+                          <p className={`text-base font-bold ${snap.dailyChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {snap.dailyChange >= 0 ? '+' : ''}{fmt(snap.dailyChange)}
+                          </p>
+                        )}
+                        <p className={`text-xs font-semibold ${snap.pnlPct >= 0 ? 'text-green-400/70' : 'text-red-400/70'}`}>
+                          총 {snap.pnlPct >= 0 ? '+' : ''}{snap.pnlPct.toFixed(2)}%
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        ) : holdings.length === 0 ? (
           <div className="bg-zinc-800 rounded-xl p-8 text-center">
             <div className="text-5xl mb-4">📊</div>
             <h3 className="font-semibold text-base mb-1">아직 보유 종목이 없어요</h3>
@@ -502,6 +590,102 @@ export default function DashboardPage() {
           <p className="text-xs text-zinc-700 mt-3 text-right">1분마다 갱신</p>
         </div>
       </div>
+
+      {/* 포트폴리오 분석 모달 */}
+      {showAnalysis && holdings.length > 0 && (() => {
+        const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16']
+        const sorted = [...holdings].sort((a, b) => {
+          const av = (a.quote?.price ?? a.avg_price) * a.quantity
+          const bv = (b.quote?.price ?? b.avg_price) * b.quantity
+          return bv - av
+        })
+        const byPnlPct = [...holdings].sort((a, b) => {
+          const ap = ((a.quote?.price ?? a.avg_price) - a.avg_price) / a.avg_price * 100
+          const bp = ((b.quote?.price ?? b.avg_price) - b.avg_price) / b.avg_price * 100
+          return bp - ap
+        })
+        return (
+          <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 px-0 sm:px-4" onClick={() => setShowAnalysis(false)}>
+            <div className="bg-zinc-800 rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-5">
+                  <h2 className="font-bold text-lg">포트폴리오 분석</h2>
+                  <button onClick={() => setShowAnalysis(false)} className="text-zinc-400 hover:text-zinc-200 text-xl">×</button>
+                </div>
+
+                {/* 투자원금 vs 평가금액 */}
+                <div className="bg-zinc-700/50 rounded-xl p-4 mb-5 flex gap-4">
+                  <div className="flex-1">
+                    <p className="text-xs text-zinc-400 mb-0.5">투자 원금</p>
+                    <p className="text-base font-bold">{fmt(totalInvested)}</p>
+                  </div>
+                  <div className="w-px bg-zinc-600" />
+                  <div className="flex-1">
+                    <p className="text-xs text-zinc-400 mb-0.5">현재 평가금액</p>
+                    <p className="text-base font-bold">{fmt(totalCurrent)}</p>
+                  </div>
+                  <div className="w-px bg-zinc-600" />
+                  <div className="flex-1">
+                    <p className="text-xs text-zinc-400 mb-0.5">총 손익</p>
+                    <p className={`text-base font-bold ${totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {totalPnl >= 0 ? '+' : ''}{fmt(totalPnl)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 종목별 비중 */}
+                <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wide mb-3">종목 비중</p>
+                <div className="flex flex-col gap-2.5 mb-5">
+                  {sorted.map((h, i) => {
+                    const val = (h.quote?.price ?? h.avg_price) * h.quantity
+                    const pct = totalCurrent > 0 ? (val / totalCurrent) * 100 : 0
+                    return (
+                      <div key={h.id}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                            <span className="text-sm font-semibold">{h.symbol}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-zinc-400">
+                            <span>{fmt(val)}</span>
+                            <span className="font-semibold text-zinc-200 w-10 text-right">{pct.toFixed(1)}%</span>
+                          </div>
+                        </div>
+                        <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* 수익률 순위 */}
+                <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wide mb-3">수익률 순위</p>
+                <div className="flex flex-col gap-2">
+                  {byPnlPct.map((h, i) => {
+                    const pnlPct = ((h.quote?.price ?? h.avg_price) - h.avg_price) / h.avg_price * 100
+                    const pnlAmt = ((h.quote?.price ?? h.avg_price) - h.avg_price) * h.quantity
+                    return (
+                      <div key={h.id} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="text-zinc-500 w-5 text-xs">{i + 1}.</span>
+                          <span className="font-semibold">{h.symbol}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`text-xs ${pnlAmt >= 0 ? 'text-green-400/70' : 'text-red-400/70'}`}>{pnlAmt >= 0 ? '+' : ''}{fmt(pnlAmt)}</span>
+                          <span className={`font-bold w-16 text-right ${pnlPct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* 종목 수정 모달 */}
       {editingHolding && (
