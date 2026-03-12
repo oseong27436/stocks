@@ -239,7 +239,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen relative px-4 py-6">
       {/* 메인 컨텐츠 — 중앙 고정 */}
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto fade-in">
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -317,6 +317,13 @@ export default function DashboardPage() {
               <p className="text-sm font-bold font-mono text-amber-400">₩{Math.round(exchangeRate).toLocaleString()}</p>
             </div>
             {/* 주요 지수 */}
+            {indices.length === 0 && [1,2,3].map(i => (
+              <div key={i} className="flex-shrink-0 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 flex flex-col gap-1.5">
+                <div className="h-2.5 w-12 bg-zinc-700 rounded animate-pulse" />
+                <div className="h-4 w-16 bg-zinc-700 rounded animate-pulse" />
+                <div className="h-2.5 w-10 bg-zinc-700 rounded animate-pulse" />
+              </div>
+            ))}
             {indices.map(idx => (
               <div key={idx.symbol} className="flex-shrink-0 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5">
                 <p className="text-xs text-zinc-500">{INDEX_LABELS[idx.symbol] ?? idx.symbol}</p>
@@ -478,7 +485,17 @@ export default function DashboardPage() {
               </div>
             ))}
             {indices.length === 0 && (
-              <p className="text-xs text-zinc-600">불러오는 중...</p>
+              <div className="flex flex-col gap-3">
+                {[1,2,3].map(i => (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex flex-col gap-1">
+                      <div className="h-2.5 w-14 bg-zinc-700 rounded animate-pulse" />
+                      <div className="h-3.5 w-20 bg-zinc-700 rounded animate-pulse" />
+                    </div>
+                    <div className="h-3 w-12 bg-zinc-700 rounded animate-pulse" />
+                  </div>
+                ))}
+              </div>
             )}
           </div>
           <p className="text-xs text-zinc-700 mt-3 text-right">1분마다 갱신</p>

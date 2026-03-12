@@ -77,7 +77,7 @@ export default function GroupsPage() {
   )
 
   return (
-    <div className="min-h-screen px-4 py-6 max-w-2xl mx-auto">
+    <div className="min-h-screen px-4 py-6 max-w-2xl mx-auto fade-in">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Link href="/dashboard" className="text-zinc-400 hover:text-zinc-200 text-sm">← 대시보드</Link>

@@ -94,7 +94,7 @@ export default function AdminPage() {
   )
 
   return (
-    <div className="min-h-screen px-4 py-6 max-w-2xl mx-auto">
+    <div className="min-h-screen px-4 py-6 max-w-2xl mx-auto fade-in">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold">🛠️ 관리자</h1>
         <Link href="/dashboard" className="text-sm text-zinc-400 hover:text-zinc-200">← 대시보드</Link>

@@ -166,7 +166,7 @@ export default function GroupDetailPage() {
   )
 
   return (
-    <div className="min-h-screen px-4 py-6 max-w-2xl mx-auto">
+    <div className="min-h-screen px-4 py-6 max-w-2xl mx-auto fade-in">
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -263,7 +263,17 @@ export default function GroupDetailPage() {
           </div>
 
           {historyLoading ? (
-            <div className="text-center text-zinc-400 py-12 text-sm">불러오는 중...</div>
+            <div className="flex flex-col gap-3">
+              {[1,2,3,4,5].map(i => (
+                <div key={i} className="bg-zinc-800 rounded-xl p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-6 bg-zinc-700 rounded animate-pulse" />
+                    <div className="h-4 w-24 bg-zinc-700 rounded animate-pulse" />
+                  </div>
+                  <div className="h-4 w-16 bg-zinc-700 rounded animate-pulse" />
+                </div>
+              ))}
+            </div>
           ) : chartData.length === 0 ? (
             <div className="bg-zinc-800 rounded-xl p-8 text-center text-zinc-400 text-sm">
               아직 히스토리가 없어요.<br />
