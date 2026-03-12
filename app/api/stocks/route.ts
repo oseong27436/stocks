@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
     const rate = hasKrw ? await fetchUsdKrwRate() : 1
 
     const normalized = quotes.map(q => {
-      if (q.currency === 'KRW' && rate > 1 && !q.symbol.includes('=X')) {
+      if (q.currency === 'KRW' && rate > 1 && !q.symbol.includes('=X') && !q.symbol.startsWith('^')) {
         return {
           ...q,
           price: q.price / rate,
