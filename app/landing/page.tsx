@@ -463,7 +463,8 @@ const TESTIMONIALS = [
 ════════════════════════════════════════ */
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white text-gray-900 font-sans">
+    <div className="min-h-screen bg-white text-gray-900" style={{ fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif" }}>
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
 
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur border-b border-gray-100">
