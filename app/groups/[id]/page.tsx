@@ -3,9 +3,6 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, Holding, UserProfile } from '@/lib/supabase'
-import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Legend
-} from 'recharts'
 
 type MemberSummary = {
   profile: UserProfile
@@ -24,7 +21,6 @@ type HistoryEntry = {
   data: { date: string; pnlPct: number; totalValue: number }[]
 }
 
-const LINE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6']
 
 export default function GroupDetailPage() {
   const router = useRouter()
@@ -129,20 +125,6 @@ export default function GroupDetailPage() {
     localStorage.setItem('hideAmounts', String(next))
     setHideAmounts(next)
   }
-
-  // 차트용 날짜별 데이터 변환
-  const chartData = (() => {
-    if (history.length === 0) return []
-    const allDates = [...new Set(history.flatMap(u => u.data.map(d => d.date)))].sort()
-    return allDates.map(date => {
-      const row: Record<string, any> = { date: date.slice(5) } // MM-DD
-      for (const user of history) {
-        const snap = user.data.find(d => d.date === date)
-        if (snap) row[user.nickname] = parseFloat(snap.pnlPct.toFixed(2))
-      }
-      return row
-    })
-  })()
 
   // 날짜별 랭킹 테이블
   const rankingDates = (() => {
@@ -264,75 +246,51 @@ export default function GroupDetailPage() {
 
           {historyLoading ? (
             <div className="flex flex-col gap-3">
-              {[1,2,3,4,5].map(i => (
-                <div key={i} className="bg-zinc-800 rounded-xl p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="h-4 w-6 skeleton" />
-                    <div className="h-4 w-24 skeleton" />
+              {[1,2,3].map(i => (
+                <div key={i} className="bg-zinc-800 rounded-xl p-4">
+                  <div className="h-3 w-24 skeleton mb-3" />
+                  <div className="flex flex-col gap-2">
+                    {[1,2,3].map(j => (
+                      <div key={j} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-6 skeleton" />
+                          <div className="h-4 w-20 skeleton" />
+                        </div>
+                        <div className="h-4 w-14 skeleton" />
+                      </div>
+                    ))}
                   </div>
-                  <div className="h-4 w-16 skeleton" />
                 </div>
               ))}
             </div>
-          ) : chartData.length === 0 ? (
+          ) : rankingDates.length === 0 ? (
             <div className="bg-zinc-800 rounded-xl p-8 text-center text-zinc-400 text-sm">
               아직 히스토리가 없어요.<br />
               <span className="text-xs text-zinc-600 mt-1 block">매일 장 마감 후 자동 저장됩니다.</span>
             </div>
           ) : (
-            <>
-              {/* 수익률 차트 */}
-              <div className="bg-zinc-800 rounded-xl p-4 mb-5">
-                <p className="text-sm font-semibold mb-4">수익률 추이 (%)</p>
-                <ResponsiveContainer width="100%" height={220}>
-                  <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#71717a' }} />
-                    <YAxis tick={{ fontSize: 11, fill: '#71717a' }} unit="%" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#27272a', border: 'none', borderRadius: 8, fontSize: 12 }}
-                      formatter={(v: any) => [`${Number(v) >= 0 ? '+' : ''}${v}%`]}
-                    />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <ReferenceLine y={0} stroke="#52525b" strokeDasharray="3 3" />
-                    {history.map((u, i) => (
-                      <Line
-                        key={u.userId}
-                        type="monotone"
-                        dataKey={u.nickname}
-                        stroke={LINE_COLORS[i % LINE_COLORS.length]}
-                        strokeWidth={2}
-                        dot={false}
-                        connectNulls
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* 날짜별 랭킹 테이블 */}
-              <div className="flex flex-col gap-3">
-                {rankingDates.map(({ date, rows }) => (
-                  <div key={date} className="bg-zinc-800 rounded-xl p-4">
-                    <p className="text-xs text-zinc-500 mb-2">
-                      {new Date(date).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
-                    </p>
-                    <div className="flex flex-col gap-1.5">
-                      {rows.map((r, i) => (
-                        <div key={r.nickname} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="text-base">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
-                            <span className={r.nickname === members.find(m => m.profile.id === myId)?.profile.nickname ? 'text-blue-400 font-semibold' : ''}>{r.nickname}</span>
-                          </div>
-                          <span className={`font-semibold ${(r.pnlPct ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {(r.pnlPct ?? 0) >= 0 ? '+' : ''}{(r.pnlPct ?? 0).toFixed(2)}%
-                          </span>
+            <div className="flex flex-col gap-3">
+              {rankingDates.map(({ date, rows }) => (
+                <div key={date} className="bg-zinc-800 rounded-xl p-4">
+                  <p className="text-xs text-zinc-500 mb-2">
+                    {new Date(date).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {rows.map((r, i) => (
+                      <div key={r.nickname} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
+                          <span className={r.nickname === members.find(m => m.profile.id === myId)?.profile.nickname ? 'text-blue-400 font-semibold' : ''}>{r.nickname}</span>
                         </div>
-                      ))}
-                    </div>
+                        <span className={`font-semibold ${(r.pnlPct ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {(r.pnlPct ?? 0) >= 0 ? '+' : ''}{(r.pnlPct ?? 0).toFixed(2)}%
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
