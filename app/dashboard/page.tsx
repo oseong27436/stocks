@@ -55,16 +55,17 @@ export default function DashboardPage() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [onboardingStep, setOnboardingStep] = useState(0)
   const [showAnalysis, setShowAnalysis] = useState(false)
+  const [analysisChartMode, setAnalysisChartMode] = useState<'bar' | 'pie'>('bar')
   const [mainTab, setMainTab] = useState<'holdings' | 'history'>('holdings')
   const [myHistory, setMyHistory] = useState<any[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
-  const [historyDays, setHistoryDays] = useState(14)
+  const [historyMode, setHistoryMode] = useState<'amount' | 'rate'>('amount')
 
-  const fetchMyHistory = useCallback(async (days: number) => {
+  const fetchMyHistory = useCallback(async () => {
     setHistoryLoading(true)
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
-    const res = await fetch(`/api/my-history?days=${days}`, {
+    const res = await fetch(`/api/my-history?days=30`, {
       headers: { authorization: `Bearer ${session.access_token}` }
     })
     const data = await res.json()
@@ -127,8 +128,8 @@ export default function DashboardPage() {
 
   // 히스토리 탭 열릴 때 데이터 로드
   useEffect(() => {
-    if (mainTab === 'history') fetchMyHistory(historyDays)
-  }, [mainTab, historyDays, fetchMyHistory])
+    if (mainTab === 'history') fetchMyHistory()
+  }, [mainTab, fetchMyHistory])
 
   // 전광판 커서 깜빡임 + 시계
   useEffect(() => {
@@ -382,15 +383,16 @@ export default function DashboardPage() {
 
         {mainTab === 'history' ? (
           <div>
-            {/* 기간 선택 */}
-            <div className="flex gap-2 mb-4">
-              {[7, 14, 30].map(d => (
-                <button
-                  key={d}
-                  onClick={() => setHistoryDays(d)}
-                  className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${historyDays === d ? 'bg-blue-600 font-semibold' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
-                >{d}일</button>
-              ))}
+            {/* 수익/수익률 토글 */}
+            <div className="flex gap-1 mb-4 bg-zinc-800 rounded-lg p-1 w-fit">
+              <button
+                onClick={() => setHistoryMode('amount')}
+                className={`text-xs px-3 py-1.5 rounded-md transition-colors ${historyMode === 'amount' ? 'bg-zinc-600 font-semibold text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
+              >수익</button>
+              <button
+                onClick={() => setHistoryMode('rate')}
+                className={`text-xs px-3 py-1.5 rounded-md transition-colors ${historyMode === 'rate' ? 'bg-zinc-600 font-semibold text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
+              >수익률</button>
             </div>
             {historyLoading ? (
               <div className="flex flex-col gap-3">
@@ -415,6 +417,9 @@ export default function DashboardPage() {
                   const date = new Date(snap.date)
                   const label = date.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
                   const isFirst = i === myHistory.length - 1
+                  const prevValue = snap.totalValue - snap.dailyChange
+                  const dailyChangePct = prevValue > 0 ? (snap.dailyChange / prevValue) * 100 : 0
+                  const hasDaily = !isFirst
                   return (
                     <div key={snap.date} className={`card-in bg-zinc-800 rounded-xl px-4 py-3 flex items-center justify-between ${isFirst ? 'opacity-60' : ''}`} style={{ animationDelay: `${i * 40}ms` }}>
                       <div>
@@ -422,14 +427,19 @@ export default function DashboardPage() {
                         <p className="text-sm font-semibold">{fmt(snap.totalValue)}</p>
                       </div>
                       <div className="text-right">
-                        {!isFirst && (
+                        {hasDaily && historyMode === 'amount' && (
                           <p className={`text-base font-bold ${snap.dailyChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                             {snap.dailyChange >= 0 ? '+' : ''}{fmt(snap.dailyChange)}
                           </p>
                         )}
-                        <p className={`text-xs font-semibold ${snap.pnlPct >= 0 ? 'text-green-400/70' : 'text-red-400/70'}`}>
-                          총 {snap.pnlPct >= 0 ? '+' : ''}{snap.pnlPct.toFixed(2)}%
-                        </p>
+                        {hasDaily && historyMode === 'rate' && (
+                          <p className={`text-base font-bold ${dailyChangePct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {dailyChangePct >= 0 ? '+' : ''}{dailyChangePct.toFixed(2)}%
+                          </p>
+                        )}
+                        {!hasDaily && (
+                          <p className="text-xs text-zinc-600">기준일</p>
+                        )}
                       </div>
                     </div>
                   )
@@ -634,30 +644,88 @@ export default function DashboardPage() {
                 </div>
 
                 {/* 종목별 비중 */}
-                <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wide mb-3">종목 비중</p>
-                <div className="flex flex-col gap-2.5 mb-5">
-                  {sorted.map((h, i) => {
-                    const val = (h.quote?.price ?? h.avg_price) * h.quantity
-                    const pct = totalCurrent > 0 ? (val / totalCurrent) * 100 : 0
-                    return (
-                      <div key={h.id}>
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                            <span className="text-sm font-semibold">{h.symbol}</span>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wide">종목 비중</p>
+                  <div className="flex gap-1 bg-zinc-700 rounded-lg p-0.5">
+                    <button
+                      onClick={() => setAnalysisChartMode('bar')}
+                      className={`text-xs px-2.5 py-1 rounded-md transition-colors ${analysisChartMode === 'bar' ? 'bg-zinc-500 text-white font-semibold' : 'text-zinc-400 hover:text-zinc-200'}`}
+                    >막대</button>
+                    <button
+                      onClick={() => setAnalysisChartMode('pie')}
+                      className={`text-xs px-2.5 py-1 rounded-md transition-colors ${analysisChartMode === 'pie' ? 'bg-zinc-500 text-white font-semibold' : 'text-zinc-400 hover:text-zinc-200'}`}
+                    >원형</button>
+                  </div>
+                </div>
+                {analysisChartMode === 'bar' ? (
+                  <div className="flex flex-col gap-2.5 mb-5">
+                    {sorted.map((h, i) => {
+                      const val = (h.quote?.price ?? h.avg_price) * h.quantity
+                      const pct = totalCurrent > 0 ? (val / totalCurrent) * 100 : 0
+                      return (
+                        <div key={h.id}>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                              <span className="text-sm font-semibold">{h.symbol}</span>
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-zinc-400">
+                              <span>{fmt(val)}</span>
+                              <span className="font-semibold text-zinc-200 w-10 text-right">{pct.toFixed(1)}%</span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3 text-xs text-zinc-400">
-                            <span>{fmt(val)}</span>
-                            <span className="font-semibold text-zinc-200 w-10 text-right">{pct.toFixed(1)}%</span>
+                          <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }} />
                           </div>
                         </div>
-                        <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }} />
+                      )
+                    })}
+                  </div>
+                ) : (() => {
+                  // SVG 도넛 차트
+                  const cx = 100, cy = 100, outerR = 85, innerR = 55
+                  const toRad = (deg: number) => (deg - 90) * Math.PI / 180
+                  let cumAngle = 0
+                  const slices = sorted.map((h, i) => {
+                    const val = (h.quote?.price ?? h.avg_price) * h.quantity
+                    const pct = totalCurrent > 0 ? val / totalCurrent : 0
+                    const angle = pct * 360
+                    const startAngle = cumAngle
+                    const endAngle = cumAngle + angle
+                    cumAngle = endAngle
+                    const largeArc = angle > 180 ? 1 : 0
+                    const x1 = cx + outerR * Math.cos(toRad(startAngle))
+                    const y1 = cy + outerR * Math.sin(toRad(startAngle))
+                    const x2 = cx + outerR * Math.cos(toRad(endAngle - 0.01))
+                    const y2 = cy + outerR * Math.sin(toRad(endAngle - 0.01))
+                    const x3 = cx + innerR * Math.cos(toRad(endAngle - 0.01))
+                    const y3 = cy + innerR * Math.sin(toRad(endAngle - 0.01))
+                    const x4 = cx + innerR * Math.cos(toRad(startAngle))
+                    const y4 = cy + innerR * Math.sin(toRad(startAngle))
+                    const d = `M ${x1} ${y1} A ${outerR} ${outerR} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerR} ${innerR} 0 ${largeArc} 0 ${x4} ${y4} Z`
+                    return { h, pct, d, color: COLORS[i % COLORS.length] }
+                  })
+                  return (
+                    <div className="mb-5">
+                      <div className="flex items-center gap-5">
+                        <svg viewBox="0 0 200 200" className="w-36 h-36 flex-shrink-0">
+                          {slices.map((s, i) => (
+                            <path key={i} d={s.d} fill={s.color} opacity={0.9} />
+                          ))}
+                        </svg>
+                        <div className="flex flex-col gap-1.5 min-w-0">
+                          {slices.map((s, i) => (
+                            <div key={i} className="flex items-center gap-2 text-xs">
+                              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                              <span className="font-semibold text-zinc-200 truncate">{s.h.symbol}</span>
+                              <span className="text-zinc-400 ml-auto pl-2">{(s.pct * 100).toFixed(1)}%</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
+                    </div>
+                  )
+                })()}
 
                 {/* 수익률 순위 */}
                 <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wide mb-3">수익률 순위</p>
