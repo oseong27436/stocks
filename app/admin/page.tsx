@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -85,7 +85,7 @@ export default function AdminPage() {
     }
   }
 
-  if (loading) return <div className="flex min-h-screen items-center justify-center text-zinc-400">로딩 중...</div>
+
 
   return (
     <div className="min-h-screen px-4 py-6 max-w-2xl mx-auto">

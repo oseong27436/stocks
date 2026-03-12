@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -204,7 +204,7 @@ export default function DashboardPage() {
   const totalDailyChange = holdings.reduce((s, h) => s + (h.quote?.change ?? 0) * h.quantity, 0)
   const totalDailyChangePct = totalCurrent > 0 ? (totalDailyChange / (totalCurrent - totalDailyChange)) * 100 : 0
 
-  if (loading) return <div className="flex min-h-screen items-center justify-center text-zinc-400">로딩 중...</div>
+
 
   if (showNickname) return (
     <div className="flex min-h-screen items-center justify-center px-4">
