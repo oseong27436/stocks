@@ -9,12 +9,17 @@ async function fetchQuote(symbol: string) {
   )
   const data = await res.json()
   const meta = data?.chart?.result?.[0]?.meta ?? {}
+  const price = meta.regularMarketPrice ?? 0
+  const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? 0
+  const change = meta.regularMarketChange ?? (prevClose ? price - prevClose : 0)
+  const changePercent = meta.regularMarketChangePercent ?? (prevClose ? (price - prevClose) / prevClose * 100 : 0)
   return {
     symbol,
     name: meta.longName || meta.shortName || symbol,
-    price: meta.regularMarketPrice ?? 0,
-    change: meta.regularMarketChange ?? 0,
-    changePercent: meta.regularMarketChangePercent ?? 0,
+    price,
+    change,
+    changePercent,
+    prevClose,
   }
 }
 
