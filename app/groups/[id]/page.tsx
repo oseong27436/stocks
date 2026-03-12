@@ -208,7 +208,7 @@ export default function GroupDetailPage() {
           <p className="text-xs text-zinc-500 mb-4">친구에게 그룹 ID를 공유해서 초대하세요.</p>
           <div className="flex flex-col gap-3">
             {members.map((m, i) => (
-              <div key={m.profile.id} className={`bg-zinc-800 rounded-xl p-4 ${m.profile.id === myId ? 'ring-1 ring-blue-500' : ''}`}>
+              <div key={m.profile.id} className={`card-in bg-zinc-800 rounded-xl p-4 ${m.profile.id === myId ? 'ring-1 ring-blue-500' : ''}`} style={{ animationDelay: `${i * 70}ms` }}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}위`}</span>
@@ -267,10 +267,10 @@ export default function GroupDetailPage() {
               {[1,2,3,4,5].map(i => (
                 <div key={i} className="bg-zinc-800 rounded-xl p-4 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="h-4 w-6 bg-zinc-700 rounded animate-pulse" />
-                    <div className="h-4 w-24 bg-zinc-700 rounded animate-pulse" />
+                    <div className="h-4 w-6 skeleton" />
+                    <div className="h-4 w-24 skeleton" />
                   </div>
-                  <div className="h-4 w-16 bg-zinc-700 rounded animate-pulse" />
+                  <div className="h-4 w-16 skeleton" />
                 </div>
               ))}
             </div>

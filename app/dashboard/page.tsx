@@ -319,9 +319,9 @@ export default function DashboardPage() {
             {/* 주요 지수 */}
             {indices.length === 0 && [1,2,3].map(i => (
               <div key={i} className="flex-shrink-0 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 flex flex-col gap-1.5">
-                <div className="h-2.5 w-12 bg-zinc-700 rounded animate-pulse" />
-                <div className="h-4 w-16 bg-zinc-700 rounded animate-pulse" />
-                <div className="h-2.5 w-10 bg-zinc-700 rounded animate-pulse" />
+                <div className="h-2.5 w-12 skeleton" />
+                <div className="h-4 w-16 skeleton" />
+                <div className="h-2.5 w-10 skeleton" />
               </div>
             ))}
             {indices.map(idx => (
@@ -380,7 +380,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {holdings.map(h => {
+            {holdings.map((h, i) => {
               const current = (h.quote?.price ?? h.avg_price) * h.quantity
               const invested = h.avg_price * h.quantity
               const pnl = current - invested
@@ -388,7 +388,8 @@ export default function DashboardPage() {
               return (
                 <div
                   key={h.id}
-                  className="bg-zinc-800 rounded-xl p-5 cursor-pointer hover:bg-zinc-750 hover:ring-1 hover:ring-zinc-600 transition-all"
+                  className="card-in bg-zinc-800 rounded-xl p-5 cursor-pointer hover:bg-zinc-700/60 hover:ring-1 hover:ring-zinc-600 transition-all"
+                  style={{ animationDelay: `${i * 60}ms` }}
                   onClick={() => { setEditingHolding(h); setEditForm({ quantity: String(h.quantity), avg_price: String(h.avg_price) }) }}
                 >
                   {/* 상단: 종목명 + 오늘 등락 */}
@@ -489,10 +490,10 @@ export default function DashboardPage() {
                 {[1,2,3].map(i => (
                   <div key={i} className="flex items-center justify-between">
                     <div className="flex flex-col gap-1">
-                      <div className="h-2.5 w-14 bg-zinc-700 rounded animate-pulse" />
-                      <div className="h-3.5 w-20 bg-zinc-700 rounded animate-pulse" />
+                      <div className="h-2.5 w-14 skeleton" />
+                      <div className="h-3.5 w-20 skeleton" />
                     </div>
-                    <div className="h-3 w-12 bg-zinc-700 rounded animate-pulse" />
+                    <div className="h-3 w-12 skeleton" />
                   </div>
                 ))}
               </div>
