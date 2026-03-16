@@ -10,7 +10,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
 
 // 카카오톡 이름 → user_id 매핑
 const SENDER_MAP: Record<string, string> = {
-  '오성': '77470174-496a-48d6-847f-114bd11a04b4',
+  '신오성': '77470174-496a-48d6-847f-114bd11a04b4',
   '김정민': '586f4a73-7c38-4d2f-b18b-955b95f6795f',
 }
 
