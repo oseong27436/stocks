@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
 
   const userId = SENDER_MAP[sender]
   if (!userId) {
-    return NextResponse.text(`등록되지 않은 사용자입니다: ${sender}`)
+    return new NextResponse(`등록되지 않은 사용자입니다: ${sender}`, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
   }
 
   if (cmd === '오늘수익') {
