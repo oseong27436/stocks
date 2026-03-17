@@ -11,6 +11,7 @@ type QuoteData = {
   price: number
   change: number
   changePercent: number
+  currency?: string
 }
 
 type HoldingWithQuote = Holding & { quote?: QuoteData }
@@ -117,16 +118,6 @@ export default function DashboardPage() {
       ])
       setHoldings(h)
       setLoading(false)
-      // 오늘 스냅샷 즉시 저장 (크론과 별개로 앱 진입 시 upsert)
-      if (h.length > 0) {
-        const tv = h.reduce((s: number, x: HoldingWithQuote) => s + (x.quote?.price ?? x.avg_price) * x.quantity, 0)
-        const ti = h.reduce((s: number, x: HoldingWithQuote) => s + x.avg_price * x.quantity, 0)
-        fetch('/api/snapshot-me', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', authorization: `Bearer ${data.session.access_token}` },
-          body: JSON.stringify({ totalValue: tv, totalInvested: ti }),
-        }).catch(() => {})
-      }
     })
   }, [router, fetchHoldings, fetchMarketData])
 
@@ -230,8 +221,13 @@ export default function DashboardPage() {
     : '$' + usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const fmt = (usd: number) => hideAmounts ? '••••••' : fmtRaw(usd)
 
-  const totalInvested = holdings.reduce((s, h) => s + h.avg_price * h.quantity, 0)
-  const totalCurrent = holdings.reduce((s, h) => s + (h.quote?.price ?? h.avg_price) * h.quantity, 0)
+  // KRW 종목의 avg_price는 DB에 원화로 저장됨 → USD로 환산해서 비교
+  const avgPriceUsd = (h: HoldingWithQuote) =>
+    h.quote?.currency === 'KRW' && exchangeRate > 1
+      ? h.avg_price / exchangeRate
+      : h.avg_price
+  const totalInvested = holdings.reduce((s, h) => s + avgPriceUsd(h) * h.quantity, 0)
+  const totalCurrent = holdings.reduce((s, h) => s + (h.quote?.price ?? avgPriceUsd(h)) * h.quantity, 0)
   const totalPnl = totalCurrent - totalInvested
   const totalPnlPct = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0
   const totalDailyChange = holdings.reduce((s, h) => s + (h.quote?.change ?? 0) * h.quantity, 0)
@@ -489,8 +485,9 @@ export default function DashboardPage() {
         ) : (
           <div className="flex flex-col gap-3">
             {holdings.map((h, i) => {
-              const current = (h.quote?.price ?? h.avg_price) * h.quantity
-              const invested = h.avg_price * h.quantity
+              const avgUsd = avgPriceUsd(h)
+              const current = (h.quote?.price ?? avgUsd) * h.quantity
+              const invested = avgUsd * h.quantity
               const pnl = current - invested
               const pnlPct = (pnl / invested) * 100
               return (
@@ -741,8 +738,9 @@ export default function DashboardPage() {
                 <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wide mb-3">수익률 순위</p>
                 <div className="flex flex-col gap-2">
                   {byPnlPct.map((h, i) => {
-                    const pnlPct = ((h.quote?.price ?? h.avg_price) - h.avg_price) / h.avg_price * 100
-                    const pnlAmt = ((h.quote?.price ?? h.avg_price) - h.avg_price) * h.quantity
+                    const avgUsd2 = avgPriceUsd(h)
+                    const pnlPct = ((h.quote?.price ?? avgUsd2) - avgUsd2) / avgUsd2 * 100
+                    const pnlAmt = ((h.quote?.price ?? avgUsd2) - avgUsd2) * h.quantity
                     return (
                       <div key={h.id} className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
