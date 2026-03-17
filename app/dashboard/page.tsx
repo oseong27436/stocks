@@ -221,13 +221,8 @@ export default function DashboardPage() {
     : '$' + usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const fmt = (usd: number) => hideAmounts ? '••••••' : fmtRaw(usd)
 
-  // KRW 종목의 avg_price는 DB에 원화로 저장됨 → USD로 환산해서 비교
-  const avgPriceUsd = (h: HoldingWithQuote) =>
-    h.quote?.currency === 'KRW' && exchangeRate > 1
-      ? h.avg_price / exchangeRate
-      : h.avg_price
-  const totalInvested = holdings.reduce((s, h) => s + avgPriceUsd(h) * h.quantity, 0)
-  const totalCurrent = holdings.reduce((s, h) => s + (h.quote?.price ?? avgPriceUsd(h)) * h.quantity, 0)
+  const totalInvested = holdings.reduce((s, h) => s + h.avg_price * h.quantity, 0)
+  const totalCurrent = holdings.reduce((s, h) => s + (h.quote?.price ?? h.avg_price) * h.quantity, 0)
   const totalPnl = totalCurrent - totalInvested
   const totalPnlPct = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0
   const totalDailyChange = holdings.reduce((s, h) => s + (h.quote?.change ?? 0) * h.quantity, 0)
@@ -485,9 +480,8 @@ export default function DashboardPage() {
         ) : (
           <div className="flex flex-col gap-3">
             {holdings.map((h, i) => {
-              const avgUsd = avgPriceUsd(h)
-              const current = (h.quote?.price ?? avgUsd) * h.quantity
-              const invested = avgUsd * h.quantity
+              const current = (h.quote?.price ?? h.avg_price) * h.quantity
+              const invested = h.avg_price * h.quantity
               const pnl = current - invested
               const pnlPct = (pnl / invested) * 100
               return (
@@ -738,9 +732,8 @@ export default function DashboardPage() {
                 <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wide mb-3">수익률 순위</p>
                 <div className="flex flex-col gap-2">
                   {byPnlPct.map((h, i) => {
-                    const avgUsd2 = avgPriceUsd(h)
-                    const pnlPct = ((h.quote?.price ?? avgUsd2) - avgUsd2) / avgUsd2 * 100
-                    const pnlAmt = ((h.quote?.price ?? avgUsd2) - avgUsd2) * h.quantity
+                    const pnlPct = ((h.quote?.price ?? h.avg_price) - h.avg_price) / h.avg_price * 100
+                    const pnlAmt = ((h.quote?.price ?? h.avg_price) - h.avg_price) * h.quantity
                     return (
                       <div key={h.id} className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
