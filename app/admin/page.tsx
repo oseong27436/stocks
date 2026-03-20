@@ -31,6 +31,9 @@ export default function AdminPage() {
   const [userDetail, setUserDetail] = useState<UserDetail | null>(null)
   const [groupDetail, setGroupDetail] = useState<GroupDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [backfillDates, setBackfillDates] = useState('2026-03-17,2026-03-18,2026-03-19')
+  const [backfillLoading, setBackfillLoading] = useState(false)
+  const [backfillResult, setBackfillResult] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -67,6 +70,28 @@ export default function AdminPage() {
     setDetailLoading(false)
   }
 
+  async function handleBackfill() {
+    const dates = backfillDates.split(',').map(d => d.trim()).filter(Boolean)
+    if (!dates.length) return
+    setBackfillLoading(true)
+    setBackfillResult(null)
+    const res = await fetch('/api/admin/backfill', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dates }),
+    })
+    const json = await res.json()
+    if (!res.ok) {
+      setBackfillResult(`오류: ${json.error}`)
+    } else {
+      const summary = Object.entries(json.results as Record<string, { saved: number; skipped: number }>)
+        .map(([d, r]) => `${d}: ${r.saved}명 저장, ${r.skipped}명 스킵`)
+        .join('\n')
+      setBackfillResult(summary)
+    }
+    setBackfillLoading(false)
+  }
+
   async function handleDelete(type: 'user' | 'group', id: string, name: string) {
     if (!confirm(`"${name}"을(를) 삭제하시겠습니까?`)) return
     const res = await fetch('/api/admin', {
@@ -98,6 +123,30 @@ export default function AdminPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold">🛠️ 관리자</h1>
         <Link href="/dashboard" className="text-sm text-zinc-400 hover:text-zinc-200">← 대시보드</Link>
+      </div>
+
+      {/* 스냅샷 백필 */}
+      <div className="bg-zinc-800 rounded-xl px-4 py-4 mb-8">
+        <h2 className="font-semibold mb-3">📅 스냅샷 백필</h2>
+        <p className="text-xs text-zinc-500 mb-3">누락된 날짜의 히스토리를 과거 가격으로 소급 저장합니다</p>
+        <div className="flex gap-2 mb-3">
+          <input
+            value={backfillDates}
+            onChange={e => setBackfillDates(e.target.value)}
+            placeholder="2026-03-17,2026-03-18"
+            className="flex-1 bg-zinc-700 rounded-lg px-3 py-2 text-sm outline-none"
+          />
+          <button
+            onClick={handleBackfill}
+            disabled={backfillLoading}
+            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg px-4 py-2 text-sm font-semibold transition-colors"
+          >
+            {backfillLoading ? '실행 중...' : '실행'}
+          </button>
+        </div>
+        {backfillResult && (
+          <pre className="text-xs text-zinc-300 bg-zinc-900 rounded-lg px-3 py-2 whitespace-pre-wrap">{backfillResult}</pre>
+        )}
       </div>
 
       {/* 유저 목록 */}
