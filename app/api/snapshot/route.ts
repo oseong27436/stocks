@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { fetchQuote, fetchUsdKrwRate } from '@/lib/yahoo'
 
 const adminSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,11 +33,15 @@ export async function GET(req: NextRequest) {
   }
 
   // 필요한 심볼 전체 한 번에 가격 조회
-  const allSymbols = [...new Set(allHoldings.map(h => h.symbol))].join(',')
-  const priceRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/stocks?symbols=${allSymbols}`)
-  const quotes: { symbol: string; price: number }[] = await priceRes.json()
+  const allSymbols = [...new Set(allHoldings.map(h => h.symbol))]
+  const rawQuotes = await Promise.all(allSymbols.map(fetchQuote))
+  const hasKrw = rawQuotes.some(q => q.currency === 'KRW')
+  const rate = hasKrw ? await fetchUsdKrwRate() : 1
   const priceMap: Record<string, number> = {}
-  for (const q of quotes) priceMap[q.symbol] = q.price
+  for (const q of rawQuotes) {
+    const price = q.currency === 'KRW' && rate > 1 ? q.price / rate : q.price
+    priceMap[q.symbol] = price
+  }
 
   // 유저별 스냅샷 upsert
   const snapshots = Object.entries(byUser).map(([userId, holdings]) => {
